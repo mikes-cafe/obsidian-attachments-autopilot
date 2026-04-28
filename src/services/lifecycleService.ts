@@ -51,6 +51,14 @@ const previewExtensions = (): readonly string[] => {
  * Rename the twin and any preview file for an attachment that moved within
  * the watched folder. Idempotent — re-running with the same paths is a no-op
  * once the destination already exists.
+ *
+ * Implementation note: we read the OLD twin's content *before* renaming it,
+ * compute the updated content in memory, and write it to the new path at the
+ * end. Reading after the rename was unreliable in production (Bug-002 in the
+ * 2026-04-28 v1.1 QA round): `vault.read` of the renamed file sometimes
+ * silently returned without our rewrite landing — likely a race with
+ * Obsidian's `fileManager.renameFile` link-update pass. Reading first makes
+ * the operation order-independent of Obsidian's internal bookkeeping.
  */
 export async function renameTwin(
   vault: TwinVault,
@@ -62,6 +70,12 @@ export async function renameTwin(
   const newPaths = twinPathsFor(newAttachmentPath, attachmentFolder);
 
   if (oldPaths.twinFile === newPaths.twinFile) return;
+
+  // Read the old twin's content first so the rewrite doesn't depend on the
+  // post-rename read working correctly.
+  const oldContent = vault.exists(oldPaths.twinFile)
+    ? await vault.read(oldPaths.twinFile)
+    : null;
 
   if (vault.exists(oldPaths.twinFile)) {
     if (!vault.exists(newPaths.twinFolder)) {
@@ -84,13 +98,12 @@ export async function renameTwin(
     }
   }
 
-  if (vault.exists(newPaths.twinFile)) {
-    let content = await vault.read(newPaths.twinFile);
-    const updatedRef = setTwinRef(content, newAttachmentPath);
-    const updated = renamedPreviewPath
-      ? setTwinPreview(updatedRef, renamedPreviewPath)
-      : updatedRef;
-    if (updated !== content) {
+  if (oldContent !== null && vault.exists(newPaths.twinFile)) {
+    let updated = setTwinRef(oldContent, newAttachmentPath);
+    if (renamedPreviewPath) {
+      updated = setTwinPreview(updated, renamedPreviewPath);
+    }
+    if (updated !== oldContent) {
       await vault.modify(newPaths.twinFile, updated);
     }
   }
