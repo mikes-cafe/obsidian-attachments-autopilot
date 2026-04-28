@@ -48,17 +48,28 @@ const previewExtensions = (): readonly string[] => {
 };
 
 /**
- * Rename the twin and any preview file for an attachment that moved within
- * the watched folder. Idempotent — re-running with the same paths is a no-op
- * once the destination already exists.
+ * Synchronize the twin (and any preview) for an attachment that moved within
+ * the watched folder. Handles two distinct cases that have to be covered:
  *
- * Implementation note: we read the OLD twin's content *before* renaming it,
- * compute the updated content in memory, and write it to the new path at the
- * end. Reading after the rename was unreliable in production (Bug-002 in the
- * 2026-04-28 v1.1 QA round): `vault.read` of the renamed file sometimes
- * silently returned without our rewrite landing — likely a race with
- * Obsidian's `fileManager.renameFile` link-update pass. Reading first makes
- * the operation order-independent of Obsidian's internal bookkeeping.
+ *   (a) **basename changed** (`tiny.png` → `pequenita.png`) — the twin path
+ *       and preview path BOTH change because they're keyed off the basename.
+ *       The twin file and preview file get renamed on disk; the twin's
+ *       frontmatter is rewritten so `attachment-ref` and `attachment-prev`
+ *       point at the new paths.
+ *
+ *   (b) **moved into a subfolder** (`attachments/foo.png` → `attachments/2024/foo.png`)
+ *       — the basename is unchanged, so the twin path and preview path are
+ *       *identical* before and after. No on-disk rename is needed, but the
+ *       twin's `attachment-ref` MUST still update to reflect the source's new
+ *       full path. (Earlier versions early-returned here and left the
+ *       frontmatter pointing at the old path — Bug-002 §14.4.)
+ *
+ * Order of operations: read old content → modify the twin **at its old path**
+ * with the rewritten frontmatter → rename twin file (if path changed) →
+ * rename preview file (if path changed). Modifying the file at its old path
+ * before any rename eliminates the race against Obsidian's
+ * `fileManager.renameFile` link-update pass that broke the previous version
+ * in production (Bug-002 §14.2).
  */
 export async function renameTwin(
   vault: TwinVault,
@@ -66,46 +77,64 @@ export async function renameTwin(
   newAttachmentPath: string,
   attachmentFolder: string,
 ): Promise<void> {
+  if (oldAttachmentPath === newAttachmentPath) return;
+
   const oldPaths = twinPathsFor(oldAttachmentPath, attachmentFolder);
   const newPaths = twinPathsFor(newAttachmentPath, attachmentFolder);
 
-  if (oldPaths.twinFile === newPaths.twinFile) return;
-
-  // Read the old twin's content first so the rewrite doesn't depend on the
-  // post-rename read working correctly.
+  // Read the existing twin content (if any) and locate the existing preview
+  // (if any) before touching the filesystem.
   const oldContent = vault.exists(oldPaths.twinFile)
     ? await vault.read(oldPaths.twinFile)
     : null;
 
-  if (vault.exists(oldPaths.twinFile)) {
+  let oldPreviewPath: string | null = null;
+  let newPreviewPath: string | null = null;
+  for (const ext of previewExtensions()) {
+    const candidate = oldPaths.previewFile(ext);
+    if (vault.exists(candidate)) {
+      oldPreviewPath = candidate;
+      newPreviewPath = newPaths.previewFile(ext);
+      break;
+    }
+  }
+
+  // Rewrite the twin frontmatter (still at the old path) so that:
+  //   - attachment-ref points at the new attachment path
+  //   - attachment-prev points at the new preview path (if a preview exists)
+  // Doing this BEFORE renaming means the rename carries the corrected content.
+  if (oldContent !== null) {
+    let updated = setTwinRef(oldContent, newAttachmentPath);
+    if (newPreviewPath !== null) {
+      updated = setTwinPreview(updated, newPreviewPath);
+    }
+    if (updated !== oldContent) {
+      await vault.modify(oldPaths.twinFile, updated);
+    }
+  }
+
+  // Rename twin file if its path actually changed (case a).
+  if (
+    oldPaths.twinFile !== newPaths.twinFile &&
+    vault.exists(oldPaths.twinFile)
+  ) {
     if (!vault.exists(newPaths.twinFolder)) {
       await vault.createFolder(newPaths.twinFolder);
     }
     await vault.rename(oldPaths.twinFile, newPaths.twinFile);
   }
 
-  let renamedPreviewPath: string | null = null;
-  for (const ext of previewExtensions()) {
-    const oldPreview = oldPaths.previewFile(ext);
-    const newPreview = newPaths.previewFile(ext);
-    if (oldPreview === newPreview) continue;
-    if (vault.exists(oldPreview)) {
-      if (!vault.exists(newPaths.previewFolder)) {
-        await vault.createFolder(newPaths.previewFolder);
-      }
-      await vault.rename(oldPreview, newPreview);
-      renamedPreviewPath = newPreview;
+  // Rename preview file if its path actually changed (case a).
+  if (
+    oldPreviewPath !== null &&
+    newPreviewPath !== null &&
+    oldPreviewPath !== newPreviewPath &&
+    vault.exists(oldPreviewPath)
+  ) {
+    if (!vault.exists(newPaths.previewFolder)) {
+      await vault.createFolder(newPaths.previewFolder);
     }
-  }
-
-  if (oldContent !== null && vault.exists(newPaths.twinFile)) {
-    let updated = setTwinRef(oldContent, newAttachmentPath);
-    if (renamedPreviewPath) {
-      updated = setTwinPreview(updated, renamedPreviewPath);
-    }
-    if (updated !== oldContent) {
-      await vault.modify(newPaths.twinFile, updated);
-    }
+    await vault.rename(oldPreviewPath, newPreviewPath);
   }
 }
 

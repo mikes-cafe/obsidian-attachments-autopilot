@@ -156,6 +156,72 @@ describe("renameTwin", () => {
     ).resolves.toBeUndefined();
     expect(v.files.size).toBe(0);
   });
+
+  // §14.4 regression — Bug-002 from the v1.1 QA round.
+  // Move within scope to a subfolder: basename is unchanged, so twin path and
+  // preview path are byte-identical, but `attachment-ref` MUST still update to
+  // the new full attachment path.
+  it("updates attachment-ref when the source moves into a subfolder (twin path unchanged)", async () => {
+    const v = new FakeVault();
+    await ensureTwin(v, "attachments/photo.png", folder);
+    v.binary.set("attachments/twin/preview/photo.png.png", new ArrayBuffer(8));
+    v.files.set(
+      "attachments/twin/photo.png.md",
+      [
+        "---",
+        'attachment-ref: "[[attachments/photo.png]]"',
+        "attachment-type: png",
+        'attachment-prev: "[[attachments/twin/preview/photo.png.png]]"',
+        "---",
+        "",
+      ].join("\n"),
+    );
+
+    await renameTwin(
+      v,
+      "attachments/photo.png",
+      "attachments/2024/photo.png",
+      folder,
+    );
+
+    // Twin file path is unchanged (it's keyed by basename only).
+    expect(v.files.has("attachments/twin/photo.png.md")).toBe(true);
+    const content = v.files.get("attachments/twin/photo.png.md")!;
+    // But the wikilink reflects the new full path including the subfolder.
+    expect(content).toContain('attachment-ref: "[[attachments/2024/photo.png]]"');
+    // Preview file is also unchanged on disk and in the frontmatter.
+    expect(v.binary.has("attachments/twin/preview/photo.png.png")).toBe(true);
+    expect(content).toContain(
+      'attachment-prev: "[[attachments/twin/preview/photo.png.png]]"',
+    );
+  });
+
+  // §14.2 regression — also from the v1.1 QA round. The previous fix attempt
+  // read the renamed file *after* the rename and was unreliable in production.
+  // This test pins the contract that the frontmatter rewrite never depends on
+  // a successful post-rename read: it's applied to the OLD twin path before
+  // the rename moves the file to the new path.
+  it("rewrites frontmatter even if reading the post-rename twin path would fail", async () => {
+    const v = new FakeVault();
+    await ensureTwin(v, "attachments/old.png", folder);
+
+    // Wedge: any attempt to read `attachments/twin/new.png.md` blows up. If
+    // the implementation depended on a post-rename read, this test would fail.
+    const realRead = v.read.bind(v);
+    v.read = async (p: string) => {
+      if (p === "attachments/twin/new.png.md") {
+        throw new Error("simulated post-rename read failure");
+      }
+      return realRead(p);
+    };
+
+    await renameTwin(v, "attachments/old.png", "attachments/new.png", folder);
+
+    expect(v.files.has("attachments/twin/new.png.md")).toBe(true);
+    expect(v.files.get("attachments/twin/new.png.md")).toContain(
+      'attachment-ref: "[[attachments/new.png]]"',
+    );
+  });
 });
 
 describe("deleteTwin", () => {

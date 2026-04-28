@@ -1,6 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import type { App } from "obsidian";
 import {
   BASE_FILENAME,
@@ -56,11 +54,30 @@ describe("buildBaseContent", () => {
     expect(orderBlock).not.toContain("attachment-prev");
   });
 
-  it("matches the PM-customized contract in test-vault/Attachments.base verbatim", () => {
-    // Pinned snapshot — any drift between the generator and the contract should fail loudly.
-    const contractPath = resolve(__dirname, "../../test-vault/Attachments.base");
-    const contract = readFileSync(contractPath, "utf8");
-    expect(buildBaseContent().trim()).toBe(contract.trim());
+  it("matches the PM-customized contract verbatim", () => {
+    // Pinned snapshot of the contract the PM signed off on for v1.1.
+    // Any drift in `buildBaseContent` should fail this test loudly.
+    const contract = [
+      "filters:",
+      "  and:",
+      '    - file.hasProperty("attachment-ref")',
+      "properties:",
+      "  attachment-ref:",
+      "    displayName: File",
+      "  attachment-type:",
+      "    displayName: Type",
+      "  attachment-prev:",
+      "    displayName: Preview",
+      "views:",
+      "  - type: cards",
+      "    name: All attachments",
+      "    order:",
+      "      - file.name",
+      "      - attachment-type",
+      "      - attachment-ref",
+      "    image: note.attachment-prev",
+    ].join("\n");
+    expect(buildBaseContent().trim()).toBe(contract);
   });
 });
 
