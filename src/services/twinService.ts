@@ -15,8 +15,12 @@ export interface TwinVault {
    * `sourcePath`. Implementations should respect the user's `useMarkdownLinks`
    * and `newLinkFormat` settings (real Obsidian: delegate to
    * `app.fileManager.generateMarkdownLink`).
+   *
+   * Async because the production wrapper may need to retry briefly while
+   * Obsidian's metadata cache catches up after a fresh `vault.on("create")`
+   * — see Bug-004 in the v0.3.0 QA report.
    */
-  formatLink(targetPath: string, sourcePath: string): string;
+  formatLink(targetPath: string, sourcePath: string): Promise<string>;
 }
 
 export type EnsureTwinResult = "created" | "exists";
@@ -88,7 +92,7 @@ export async function ensureTwin(
   }
 
   const ext = extensionOf(attachmentPath);
-  const refLink = vault.formatLink(attachmentPath, paths.twinFile);
+  const refLink = await vault.formatLink(attachmentPath, paths.twinFile);
   await vault.create(paths.twinFile, buildTwinContent(refLink, ext));
   return "created";
 }

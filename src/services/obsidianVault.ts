@@ -46,13 +46,21 @@ export const fromObsidianVault = (app: App): TwinVault => ({
     await app.vault.delete(requireFile(app, path));
   },
 
-  formatLink: (targetPath, sourcePath) => {
-    const target = app.vault.getAbstractFileByPath(targetPath);
+  formatLink: async (targetPath, sourcePath) => {
+    let target = app.vault.getAbstractFileByPath(targetPath);
     if (!target) {
-      // Defensive fallback: if the target hasn't been indexed yet (e.g. a
-      // preview file we just wrote and Obsidian's metadata cache is still
-      // catching up), produce a plain wikilink. Both link formats accept
-      // this style as a valid frontmatter link value.
+      // Bug-004: when `vault.on("create")` fires, the file is on disk but
+      // sometimes not yet visible to `getAbstractFileByPath` until the next
+      // microtask tick. A brief retry catches up with the metadata cache so
+      // `generateMarkdownLink` produces the user's chosen format ("shortest"
+      // / "absolute") instead of falling back to the full vault-relative
+      // wikilink.
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
+      target = app.vault.getAbstractFileByPath(targetPath);
+    }
+    if (!target) {
+      // Last-resort fallback. Both link-format settings accept this style
+      // as a valid frontmatter value.
       return `[[${targetPath}]]`;
     }
     return app.fileManager.generateMarkdownLink(target as TFile, sourcePath);

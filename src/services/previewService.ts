@@ -47,7 +47,7 @@ async function syncTwinPreview(
 ): Promise<void> {
   if (!vault.exists(twinFile)) return;
   const content = await vault.read(twinFile);
-  const previewLink = vault.formatLink(previewPath, twinFile);
+  const previewLink = await vault.formatLink(previewPath, twinFile);
   const updated = setTwinPreview(content, previewLink);
   if (updated !== content) {
     await vault.modify(twinFile, updated);

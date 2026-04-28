@@ -65,7 +65,7 @@ class FakeVault implements TwinVault {
   // Default stub: produce a vault-relative wikilink, matching the format the
   // older (pre-formatLink) implementation hardcoded. Tests that need the
   // markdown-link path override this on the instance.
-  formatLink(targetPath: string, _sourcePath: string): string {
+  async formatLink(targetPath: string, _sourcePath: string): Promise<string> {
     return `[[${targetPath}]]`;
   }
 }
