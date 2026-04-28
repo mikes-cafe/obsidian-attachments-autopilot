@@ -125,6 +125,30 @@ describe("resolveAttachmentFolder", () => {
     expect(resolveAttachmentFolder({ vault: {} } as never)).toBe("");
   });
 
+  // The plugin reads the configured folder fresh on every event/command (no
+  // cache at onload). This pins that contract — if a future refactor caches
+  // the value, mid-session changes to `attachmentFolderPath` would silently
+  // break and CI would catch it here.
+  it("re-reads the attachment folder fresh on every call (no caching across mid-session changes)", () => {
+    let current: unknown = "attachments";
+    const app = {
+      vault: {
+        getConfig: (k: string) =>
+          k === "attachmentFolderPath" ? current : null,
+      },
+    } as never;
+
+    expect(resolveAttachmentFolder(app)).toBe("attachments");
+    current = "media";
+    expect(resolveAttachmentFolder(app)).toBe("media");
+    current = "";
+    expect(resolveAttachmentFolder(app)).toBe("");
+    current = "/notes/files/";
+    expect(resolveAttachmentFolder(app)).toBe("notes/files");
+    current = undefined;
+    expect(resolveAttachmentFolder(app)).toBe("");
+  });
+
   // §13.1 of the QA plan — exhaustively cover every attachment-folder shape we
   // know users can configure, plus defensive cases (whitespace, doubled
   // slashes, unicode). Pinned here so a regression in `stripSlashes` is caught

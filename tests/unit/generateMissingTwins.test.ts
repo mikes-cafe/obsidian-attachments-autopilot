@@ -127,4 +127,68 @@ describe("findOrphanAttachments", () => {
     } as unknown as App;
     expect(findOrphanAttachments(app)).toEqual([]);
   });
+
+  // Pins the QA plan §13.3 contract: when the user changes
+  // `attachmentFolderPath` mid-session, the next invocation of the orphan
+  // scan must walk the *new* folder, not a stale value from when the plugin
+  // loaded. Implementation detail: the command callback re-resolves the
+  // folder via `resolveAttachmentFolder` on every invocation.
+  it("honors a mid-session change of the attachment folder config", () => {
+    const attachmentsFolder = mkFolder("attachments", [
+      mkFile("attachments/photo.png"),
+      mkFile("attachments/clip.mp4"),
+    ]);
+    const mediaFolder = mkFolder("media", [
+      mkFile("media/song.mp3"),
+      mkFile("media/doc.pdf"),
+    ]);
+    const root = mkFolder("", [attachmentsFolder, mediaFolder]);
+
+    const allFiles: TFile[] = [];
+    const allFolders: TFolder[] = [root, attachmentsFolder, mediaFolder];
+    for (const f of [attachmentsFolder, mediaFolder]) {
+      for (const child of f.children) {
+        if (!Array.isArray((child as TFolder).children)) {
+          allFiles.push(child as TFile);
+        }
+      }
+    }
+
+    let currentFolder = "attachments";
+    const app = {
+      vault: {
+        getConfig: (k: string) =>
+          k === "attachmentFolderPath" ? currentFolder : null,
+        getRoot: () => root,
+        getAbstractFileByPath: (p: string) =>
+          allFolders.find((x) => x.path === p) ??
+          allFiles.find((x) => x.path === p) ??
+          null,
+      },
+    } as unknown as App;
+
+    // Initial config: walk only attachments/.
+    expect(findOrphanAttachments(app).sort()).toEqual([
+      "attachments/clip.mp4",
+      "attachments/photo.png",
+    ]);
+
+    // User changes Files & Links → "Default location for new attachments"
+    // from "attachments" to "media". No reload of the plugin.
+    currentFolder = "media";
+
+    // The next invocation must walk media/, not attachments/.
+    expect(findOrphanAttachments(app).sort()).toEqual([
+      "media/doc.pdf",
+      "media/song.mp3",
+    ]);
+
+    // Switch to vault-root mode mid-session.
+    currentFolder = "";
+
+    const fromRoot = findOrphanAttachments(app).sort();
+    expect(fromRoot).toContain("attachments/photo.png");
+    expect(fromRoot).toContain("media/song.mp3");
+    // No file under twin/ (there are none in this fixture, but it's the spec).
+  });
 });
