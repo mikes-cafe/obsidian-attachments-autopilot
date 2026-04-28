@@ -62,6 +62,12 @@ class FakeVault implements TwinVault {
     this.binary.delete(p);
     this.folders.delete(p);
   }
+  // Default stub: produce a vault-relative wikilink, matching the format the
+  // older (pre-formatLink) implementation hardcoded. Tests that need the
+  // markdown-link path override this on the instance.
+  formatLink(targetPath: string, _sourcePath: string): string {
+    return `[[${targetPath}]]`;
+  }
 }
 
 describe("extensionOf", () => {
@@ -80,64 +86,83 @@ describe("extensionOf", () => {
 });
 
 describe("buildTwinContent", () => {
-  it("emits the three required frontmatter properties", () => {
-    const content = buildTwinContent("attachments/photo.png", "png");
+  it("emits the three required frontmatter properties (wikilink ref)", () => {
+    const content = buildTwinContent("[[attachments/photo.png]]", "png");
     expect(content).toContain('attachment-ref: "[[attachments/photo.png]]"');
     expect(content).toContain("attachment-type: png");
     expect(content).toContain("attachment-prev:");
     expect(content.startsWith("---\n")).toBe(true);
     expect(content.split("---\n").length).toBe(3);
   });
+
+  it("accepts pre-formatted markdown-style link strings (useMarkdownLinks: true)", () => {
+    const content = buildTwinContent("[photo.png](attachments/photo.png)", "png");
+    expect(content).toContain(
+      'attachment-ref: "[photo.png](attachments/photo.png)"',
+    );
+  });
+
+  it("YAML-quotes embedded double quotes in the link string", () => {
+    const content = buildTwinContent('[odd"name](path)', "png");
+    expect(content).toContain('attachment-ref: "[odd\\"name](path)"');
+  });
 });
 
 describe("setTwinPreview", () => {
   it("replaces an existing empty attachment-prev line", () => {
-    const before = buildTwinContent("a/x.png", "png");
-    const after = setTwinPreview(before, "a/twin/preview/x.png");
+    const before = buildTwinContent("[[a/x.png]]", "png");
+    const after = setTwinPreview(before, "[[a/twin/preview/x.png]]");
     expect(after).toContain('attachment-prev: "[[a/twin/preview/x.png]]"');
     expect(after).not.toMatch(/^attachment-prev:\s*$/m);
   });
 
   it("replaces an already-populated attachment-prev line", () => {
-    const before = buildTwinContent("a/x.png", "png").replace(
+    const before = buildTwinContent("[[a/x.png]]", "png").replace(
       "attachment-prev:",
       'attachment-prev: "[[old/path.png]]"',
     );
-    const after = setTwinPreview(before, "new/path.png");
+    const after = setTwinPreview(before, "[[new/path.png]]");
     expect(after).toContain('attachment-prev: "[[new/path.png]]"');
     expect(after).not.toContain("old/path.png");
   });
 
   it("inserts the property when missing, before the closing fence", () => {
     const without = ['---', 'attachment-ref: "[[a/x.png]]"', 'attachment-type: png', '---', ''].join("\n");
-    const after = setTwinPreview(without, "a/twin/preview/x.png");
+    const after = setTwinPreview(without, "[[a/twin/preview/x.png]]");
     expect(after).toContain('attachment-prev: "[[a/twin/preview/x.png]]"');
-    // exactly one open + one close fence still
     expect(after.match(/^---\s*$/gm)?.length).toBe(2);
   });
 
   it("preserves attachment-ref and attachment-type lines", () => {
-    const before = buildTwinContent("a/x.png", "png");
-    const after = setTwinPreview(before, "a/twin/preview/x.png");
+    const before = buildTwinContent("[[a/x.png]]", "png");
+    const after = setTwinPreview(before, "[[a/twin/preview/x.png]]");
     expect(after).toContain('attachment-ref: "[[a/x.png]]"');
     expect(after).toContain("attachment-type: png");
+  });
+
+  it("works with markdown-style preview link", () => {
+    const before = buildTwinContent("[[a/x.png]]", "png");
+    const after = setTwinPreview(before, "[x.png](a/twin/preview/x.png)");
+    expect(after).toContain(
+      'attachment-prev: "[x.png](a/twin/preview/x.png)"',
+    );
   });
 });
 
 describe("setTwinRef", () => {
   it("replaces the existing attachment-ref line", () => {
-    const before = buildTwinContent("a/old.png", "png");
-    const after = setTwinRef(before, "a/new.png");
+    const before = buildTwinContent("[[a/old.png]]", "png");
+    const after = setTwinRef(before, "[[a/new.png]]");
     expect(after).toContain('attachment-ref: "[[a/new.png]]"');
     expect(after).not.toContain("a/old.png");
   });
 
   it("preserves attachment-type and attachment-prev when only the ref changes", () => {
-    const before = buildTwinContent("a/x.png", "png").replace(
+    const before = buildTwinContent("[[a/x.png]]", "png").replace(
       "attachment-prev:",
       'attachment-prev: "[[a/twin/preview/x.png.png]]"',
     );
-    const after = setTwinRef(before, "b/y.png");
+    const after = setTwinRef(before, "[[b/y.png]]");
     expect(after).toContain("attachment-type: png");
     expect(after).toContain('attachment-prev: "[[a/twin/preview/x.png.png]]"');
     expect(after).toContain('attachment-ref: "[[b/y.png]]"');
@@ -145,7 +170,7 @@ describe("setTwinRef", () => {
 
   it("inserts the property when missing, before the closing fence", () => {
     const without = ['---', "attachment-type: png", "attachment-prev:", '---', ''].join("\n");
-    const after = setTwinRef(without, "a/x.png");
+    const after = setTwinRef(without, "[[a/x.png]]");
     expect(after).toContain('attachment-ref: "[[a/x.png]]"');
     expect(after.match(/^---\s*$/gm)?.length).toBe(2);
   });

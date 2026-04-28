@@ -1,6 +1,7 @@
 {
   "settings.attachmentFolder.name": "Carpeta de adjuntos",
-  "settings.attachmentFolder.desc": "Configurada en Obsidian → Ajustes → Archivos y enlaces → Ubicación predeterminada para adjuntos nuevos. Attachments Autopilot supervisa esta carpeta.",
+  "settings.attachmentFolder.desc": "Configurada en Obsidian → Ajustes → {link} → Ubicación predeterminada para adjuntos nuevos. Attachments Autopilot supervisa esta carpeta.",
+  "settings.attachmentFolder.desc.linkText": "Archivos y enlaces",
   "settings.attachmentFolder.vaultRoot": "(raíz de la bóveda)",
   "commands.generateMissingTwins.name": "Generar gemelos para adjuntos huérfanos",
   "commands.generateMissingPreviews.name": "Generar previsualizaciones para gemelos sin una",
@@ -14,5 +15,7 @@
   "notices.import.partial": "{imported} archivo(s) importado(s); {failed} fallaron",
   "notices.import.cancelled": "No se seleccionaron archivos",
   "notices.base.created": "Se creó {path}",
-  "notices.base.updated": "Se actualizó {path}"
+  "notices.base.updated": "Se actualizó {path}",
+  "statusbar.processing": "Procesando {count} adjunto(s)…",
+  "notices.bulk.complete": "Se importaron {count} adjunto(s)"
 }

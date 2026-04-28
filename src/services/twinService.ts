@@ -10,6 +10,13 @@ export interface TwinVault {
   modify(path: string, data: string): Promise<void>;
   rename(oldPath: string, newPath: string): Promise<void>;
   delete(path: string): Promise<void>;
+  /**
+   * Render a link to `targetPath` as it would appear in a markdown file at
+   * `sourcePath`. Implementations should respect the user's `useMarkdownLinks`
+   * and `newLinkFormat` settings (real Obsidian: delegate to
+   * `app.fileManager.generateMarkdownLink`).
+   */
+  formatLink(targetPath: string, sourcePath: string): string;
 }
 
 export type EnsureTwinResult = "created" | "exists";
@@ -22,10 +29,17 @@ export function extensionOf(path: string): string {
   return name.slice(dot + 1).toLowerCase();
 }
 
-export function buildTwinContent(attachmentPath: string, extension: string): string {
+// YAML-quote a frontmatter string value: wrap in double quotes and escape
+// embedded backslashes and double quotes. The link strings we receive from
+// the formatter (e.g. `[[path]]` or `[name](path)`) frequently include
+// brackets and parens which YAML treats as flow indicators when unquoted.
+const yamlQuote = (s: string): string =>
+  `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+
+export function buildTwinContent(refLink: string, extension: string): string {
   return [
     "---",
-    `attachment-ref: "[[${attachmentPath}]]"`,
+    `attachment-ref: ${yamlQuote(refLink)}`,
     `attachment-type: ${extension}`,
     "attachment-prev:",
     "---",
@@ -44,16 +58,16 @@ const insertBeforeClosingFence = (content: string, line: string): string => {
   });
 };
 
-export function setTwinPreview(content: string, previewPath: string): string {
-  const value = `attachment-prev: "[[${previewPath}]]"`;
+export function setTwinPreview(content: string, previewLink: string): string {
+  const value = `attachment-prev: ${yamlQuote(previewLink)}`;
   if (PREV_LINE_RE.test(content)) {
     return content.replace(PREV_LINE_RE, value);
   }
   return insertBeforeClosingFence(content, value);
 }
 
-export function setTwinRef(content: string, attachmentPath: string): string {
-  const value = `attachment-ref: "[[${attachmentPath}]]"`;
+export function setTwinRef(content: string, refLink: string): string {
+  const value = `attachment-ref: ${yamlQuote(refLink)}`;
   if (REF_LINE_RE.test(content)) {
     return content.replace(REF_LINE_RE, value);
   }
@@ -74,6 +88,7 @@ export async function ensureTwin(
   }
 
   const ext = extensionOf(attachmentPath);
-  await vault.create(paths.twinFile, buildTwinContent(attachmentPath, ext));
+  const refLink = vault.formatLink(attachmentPath, paths.twinFile);
+  await vault.create(paths.twinFile, buildTwinContent(refLink, ext));
   return "created";
 }

@@ -1,6 +1,7 @@
 {
   "settings.attachmentFolder.name": "Anhangs-Ordner",
-  "settings.attachmentFolder.desc": "Wird in Obsidian → Einstellungen → Dateien und Links → Standardort für neue Anhänge festgelegt. Attachments Autopilot überwacht diesen Ordner.",
+  "settings.attachmentFolder.desc": "Wird in Obsidian → Einstellungen → {link} → Standardort für neue Anhänge festgelegt. Attachments Autopilot überwacht diesen Ordner.",
+  "settings.attachmentFolder.desc.linkText": "Dateien und Links",
   "settings.attachmentFolder.vaultRoot": "(Tresor-Wurzel)",
   "commands.generateMissingTwins.name": "Twins für verwaiste Anhänge erzeugen",
   "commands.generateMissingPreviews.name": "Vorschauen für Twins ohne eine erzeugen",
@@ -14,5 +15,7 @@
   "notices.import.partial": "{imported} Datei(en) importiert; {failed} fehlgeschlagen",
   "notices.import.cancelled": "Keine Dateien ausgewählt",
   "notices.base.created": "{path} erstellt",
-  "notices.base.updated": "{path} aktualisiert"
+  "notices.base.updated": "{path} aktualisiert",
+  "statusbar.processing": "{count} Anhang/Anhänge werden verarbeitet…",
+  "notices.bulk.complete": "{count} Anhang/Anhänge importiert"
 }

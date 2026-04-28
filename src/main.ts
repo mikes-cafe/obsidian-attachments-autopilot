@@ -2,7 +2,7 @@ import { Notice, Plugin, type TAbstractFile } from "obsidian";
 import { AttachmentsAutopilotSettingTab } from "./settings";
 import { ensureTwin } from "./services/twinService";
 import { ensurePreview } from "./services/previewService";
-import { TwinQueue } from "./services/twinQueue";
+import { TwinQueue, type QueueState } from "./services/twinQueue";
 import { fromObsidianVault } from "./services/obsidianVault";
 import { resolveAttachmentFolder } from "./services/pathService";
 import { shouldTwin } from "./events/vaultWatcher";
@@ -40,6 +40,33 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
     });
 
     this.addSettingTab(new AttachmentsAutopilotSettingTab(this.app, this));
+
+    // Bulk-import progress UI: show a status-bar item while the queue churns
+    // through ≥ PROGRESS_THRESHOLD items. Single drops stay silent.
+    const PROGRESS_THRESHOLD = 5;
+    const statusBar = this.addStatusBarItem();
+    statusBar.setText("");
+    statusBar.style.display = "none";
+    let peakSize = 0;
+    let bulkAnnounced = false;
+
+    this.queue.onChange((state: QueueState) => {
+      const total = state.pending + state.active;
+      peakSize = Math.max(peakSize, total);
+      if (total > 0 && peakSize >= PROGRESS_THRESHOLD) {
+        statusBar.setText(t("statusbar.processing", { count: total }));
+        statusBar.style.display = "";
+        bulkAnnounced = true;
+      } else if (total === 0) {
+        if (bulkAnnounced) {
+          new Notice(t("notices.bulk.complete", { count: peakSize }));
+        }
+        statusBar.setText("");
+        statusBar.style.display = "none";
+        peakSize = 0;
+        bulkAnnounced = false;
+      }
+    });
 
     this.registerEvent(
       this.app.vault.on("create", (file: TAbstractFile) => {
