@@ -1,5 +1,5 @@
 import { Notice, Plugin, type TAbstractFile } from "obsidian";
-import { AttachmentAutopilotSettingTab } from "./settings";
+import { AttachmentsAutopilotSettingTab } from "./settings";
 import { ensureTwin } from "./services/twinService";
 import { ensurePreview } from "./services/previewService";
 import { TwinQueue } from "./services/twinQueue";
@@ -12,7 +12,7 @@ import { runImportFromDevice } from "./commands/importFromDevice";
 import { generateBaseFile } from "./commands/generateBase";
 import { t } from "./i18n";
 
-export default class AttachmentAutopilotPlugin extends Plugin {
+export default class AttachmentsAutopilotPlugin extends Plugin {
   private queue!: TwinQueue;
 
   async onload(): Promise<void> {
@@ -26,7 +26,7 @@ export default class AttachmentAutopilotPlugin extends Plugin {
         previewResult = await ensurePreview(twinVault, attachmentPath, folder);
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.warn("[attachment-autopilot] preview step failed", attachmentPath, err);
+        console.warn("[attachments-autopilot] preview step failed", attachmentPath, err);
         previewResult = "failed";
       }
       if (previewResult === "failed") {
@@ -34,7 +34,7 @@ export default class AttachmentAutopilotPlugin extends Plugin {
       }
     });
 
-    this.addSettingTab(new AttachmentAutopilotSettingTab(this.app, this));
+    this.addSettingTab(new AttachmentsAutopilotSettingTab(this.app, this));
 
     this.registerEvent(
       this.app.vault.on("create", (file: TAbstractFile) => {

@@ -1,12 +1,12 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
-import type AttachmentAutopilotPlugin from "./main";
+import type AttachmentsAutopilotPlugin from "./main";
 import { resolveAttachmentFolder } from "./services/pathService";
 import { t } from "./i18n";
 
-export class AttachmentAutopilotSettingTab extends PluginSettingTab {
-  plugin: AttachmentAutopilotPlugin;
+export class AttachmentsAutopilotSettingTab extends PluginSettingTab {
+  plugin: AttachmentsAutopilotPlugin;
 
-  constructor(app: App, plugin: AttachmentAutopilotPlugin) {
+  constructor(app: App, plugin: AttachmentsAutopilotPlugin) {
     super(app, plugin);
     this.plugin = plugin;
   }

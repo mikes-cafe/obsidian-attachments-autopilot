@@ -1,6 +1,6 @@
 {
   "settings.attachmentFolder.name": "Dossier des pièces jointes",
-  "settings.attachmentFolder.desc": "Défini dans Obsidian → Paramètres → Fichiers et liens → Emplacement par défaut des nouvelles pièces jointes. Attachment Autopilot surveille ce dossier.",
+  "settings.attachmentFolder.desc": "Défini dans Obsidian → Paramètres → Fichiers et liens → Emplacement par défaut des nouvelles pièces jointes. Attachments Autopilot surveille ce dossier.",
   "settings.attachmentFolder.vaultRoot": "(racine du coffre)",
   "commands.generateMissingTwins.name": "Générer les jumeaux pour les pièces jointes orphelines",
   "commands.generateMissingPreviews.name": "Générer les aperçus pour les jumeaux sans aperçu",

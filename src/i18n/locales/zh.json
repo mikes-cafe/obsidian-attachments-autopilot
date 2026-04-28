@@ -1,6 +1,6 @@
 {
   "settings.attachmentFolder.name": "附件文件夹",
-  "settings.attachmentFolder.desc": "在 Obsidian → 设置 → 文件与链接 → 新附件的默认位置中配置。Attachment Autopilot 会监视此文件夹。",
+  "settings.attachmentFolder.desc": "在 Obsidian → 设置 → 文件与链接 → 新附件的默认位置中配置。Attachments Autopilot 会监视此文件夹。",
   "settings.attachmentFolder.vaultRoot": "（仓库根目录）",
   "commands.generateMissingTwins.name": "为孤立附件生成孪生笔记",
   "commands.generateMissingPreviews.name": "为缺少预览的孪生笔记生成预览",

@@ -1,6 +1,6 @@
 {
   "settings.attachmentFolder.name": "Carpeta de adjuntos",
-  "settings.attachmentFolder.desc": "Configurada en Obsidian → Ajustes → Archivos y enlaces → Ubicación predeterminada para adjuntos nuevos. Attachment Autopilot supervisa esta carpeta.",
+  "settings.attachmentFolder.desc": "Configurada en Obsidian → Ajustes → Archivos y enlaces → Ubicación predeterminada para adjuntos nuevos. Attachments Autopilot supervisa esta carpeta.",
   "settings.attachmentFolder.vaultRoot": "(raíz de la bóveda)",
   "commands.generateMissingTwins.name": "Generar gemelos para adjuntos huérfanos",
   "commands.generateMissingPreviews.name": "Generar previsualizaciones para gemelos sin una",

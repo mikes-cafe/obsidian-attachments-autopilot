@@ -70,7 +70,7 @@ export async function importFiles(
       imported.push(target);
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("[attachment-autopilot] import failed", file.name, err);
+      console.error("[attachments-autopilot] import failed", file.name, err);
       failed.push(file.name);
     }
   }

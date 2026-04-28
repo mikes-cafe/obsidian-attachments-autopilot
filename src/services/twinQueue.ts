@@ -57,7 +57,7 @@ export class TwinQueue {
         .catch((err) => {
           this.failedPaths.add(path);
           // eslint-disable-next-line no-console
-          console.error("[attachment-autopilot] twin queue error", path, err);
+          console.error("[attachments-autopilot] twin queue error", path, err);
         })
         .finally(() => {
           this.active -= 1;

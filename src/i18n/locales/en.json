@@ -1,6 +1,6 @@
 {
   "settings.attachmentFolder.name": "Attachment folder",
-  "settings.attachmentFolder.desc": "Set in Obsidian → Settings → Files & Links → Default location for new attachments. Attachment Autopilot watches this folder.",
+  "settings.attachmentFolder.desc": "Set in Obsidian → Settings → Files & Links → Default location for new attachments. Attachments Autopilot watches this folder.",
   "settings.attachmentFolder.vaultRoot": "(vault root)",
   "commands.generateMissingTwins.name": "Generate twins for orphan attachments",
   "commands.generateMissingPreviews.name": "Generate previews for twins without one",

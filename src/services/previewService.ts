@@ -28,7 +28,7 @@ export async function ensurePreview(
     bytes = await gen.generate(input, attachmentPath);
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error("[attachment-autopilot] preview generation failed", attachmentPath, err);
+    console.error("[attachments-autopilot] preview generation failed", attachmentPath, err);
     return "failed";
   }
 
