@@ -76,7 +76,7 @@ describe("fromObsidianVault.delete", () => {
 });
 
 describe("fromObsidianVault.formatLink", () => {
-  it("delegates to fileManager.generateMarkdownLink so user prefs are respected", () => {
+  it("delegates to fileManager.generateMarkdownLink so user prefs are respected", async () => {
     const target = fakeFile("attachments/photo.png");
     const generateMarkdownLink = vi.fn(
       () => "[photo.png](attachments/photo.png)",
@@ -87,7 +87,7 @@ describe("fromObsidianVault.formatLink", () => {
     } as unknown as App;
     const wrapper = fromObsidianVault(app);
 
-    const link = wrapper.formatLink(
+    const link = await wrapper.formatLink(
       "attachments/photo.png",
       "attachments/twin/photo.png.md",
     );
@@ -98,15 +98,67 @@ describe("fromObsidianVault.formatLink", () => {
     );
   });
 
-  it("falls back to a vault-relative wikilink when the target isn't indexed yet", () => {
+  it("retries the lookup once after a brief wait when the file isn't indexed yet (Bug-004)", async () => {
+    // Simulates the race during `vault.on("create")`: the file exists on
+    // disk but the metadata cache hasn't surfaced it through
+    // `getAbstractFileByPath` yet on the first call.
+    const target = fakeFile("attachments/photo.png");
+    let calls = 0;
+    const getAbstractFileByPath = vi.fn(() => {
+      calls += 1;
+      return calls < 2 ? null : target;
+    });
+    const generateMarkdownLink = vi.fn(() => "[[photo.png]]");
+    const app = {
+      vault: { getAbstractFileByPath },
+      fileManager: { generateMarkdownLink },
+    } as unknown as App;
+    const wrapper = fromObsidianVault(app);
+
+    // Stub setTimeout so the retry resolves immediately in the test.
+    const realSetTimeout = (globalThis as unknown as { window?: { setTimeout?: typeof setTimeout } }).window?.setTimeout;
+    (globalThis as unknown as { window: { setTimeout: typeof setTimeout } }).window = {
+      setTimeout: ((cb: () => void) => {
+        cb();
+        return 0 as unknown as ReturnType<typeof setTimeout>;
+      }) as typeof setTimeout,
+    };
+    try {
+      const link = await wrapper.formatLink(
+        "attachments/photo.png",
+        "attachments/twin/photo.png.md",
+      );
+      expect(link).toBe("[[photo.png]]");
+      expect(getAbstractFileByPath).toHaveBeenCalledTimes(2);
+      expect(generateMarkdownLink).toHaveBeenCalledWith(
+        target,
+        "attachments/twin/photo.png.md",
+      );
+    } finally {
+      if (realSetTimeout) {
+        (globalThis as unknown as { window: { setTimeout: typeof setTimeout } }).window = {
+          setTimeout: realSetTimeout,
+        };
+      }
+    }
+  });
+
+  it("falls back to a vault-relative wikilink only after the retry also fails", async () => {
     const app = {
       vault: { getAbstractFileByPath: () => null },
       fileManager: { generateMarkdownLink: vi.fn() },
     } as unknown as App;
     const wrapper = fromObsidianVault(app);
 
+    (globalThis as unknown as { window: { setTimeout: typeof setTimeout } }).window = {
+      setTimeout: ((cb: () => void) => {
+        cb();
+        return 0 as unknown as ReturnType<typeof setTimeout>;
+      }) as typeof setTimeout,
+    };
+
     expect(
-      wrapper.formatLink("attachments/photo.png", "attachments/twin/x.md"),
+      await wrapper.formatLink("attachments/photo.png", "attachments/twin/x.md"),
     ).toBe("[[attachments/photo.png]]");
   });
 });

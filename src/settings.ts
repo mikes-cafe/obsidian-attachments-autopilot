@@ -18,41 +18,46 @@ export class AttachmentsAutopilotSettingTab extends PluginSettingTab {
     const folder = resolveAttachmentFolder(this.app);
     const display = folder === "" ? t("settings.attachmentFolder.vaultRoot") : folder;
 
-    new Setting(containerEl)
-      .setName(t("settings.attachmentFolder.name"))
-      .setDesc(this.buildDesc())
-      .addText((text) => text.setValue(display).setDisabled(true));
+    const setting = new Setting(containerEl).setName(
+      t("settings.attachmentFolder.name"),
+    );
+
+    // Build the description directly into the Setting's descEl so the link
+    // gets Obsidian's link styling (color + pointer cursor + hover) and the
+    // click handler fires reliably. setDesc(DocumentFragment) was producing a
+    // visually-plain anchor in v0.3.0 — see Bug-003 in the QA report.
+    this.renderDescription(setting.descEl);
+
+    setting.addText((text) => text.setValue(display).setDisabled(true));
   }
 
-  /**
-   * Build the description as a DocumentFragment so the localized "Files & Links"
-   * substring becomes a clickable anchor that opens the corresponding Obsidian
-   * settings tab. The localized templates use a `{link}` placeholder split on
-   * here.
-   */
-  private buildDesc(): DocumentFragment {
-    const fragment = document.createDocumentFragment();
+  private renderDescription(descEl: HTMLElement): void {
+    descEl.empty();
     const template = t("settings.attachmentFolder.desc");
     const linkText = t("settings.attachmentFolder.desc.linkText");
     const [before, after = ""] = template.split("{link}");
 
-    fragment.appendChild(document.createTextNode(before));
+    descEl.appendText(before);
 
-    const anchor = document.createElement("a");
-    anchor.textContent = linkText;
-    anchor.href = "#";
+    const anchor = descEl.createEl("a", {
+      text: linkText,
+      cls: "internal-link",
+      href: "#",
+    });
+    anchor.style.cursor = "pointer";
     anchor.addEventListener("click", (evt) => {
       evt.preventDefault();
-      // Obsidian's settings registry id for the "Files & Links" tab is "file".
       const setting = (this.app as unknown as {
-        setting?: { open?: () => void; openTabById?: (id: string) => void };
+        setting?: {
+          open?: () => void;
+          openTabById?: (id: string) => void;
+        };
       }).setting;
+      // Obsidian's tab id for "Files & Links" is "file".
       setting?.open?.();
       setting?.openTabById?.("file");
     });
-    fragment.appendChild(anchor);
 
-    fragment.appendChild(document.createTextNode(after));
-    return fragment;
+    descEl.appendText(after);
   }
 }

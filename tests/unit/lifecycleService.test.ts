@@ -56,7 +56,7 @@ class FakeVault implements TwinVault {
     this.binary.delete(p);
     this.folders.delete(p);
   }
-  formatLink(targetPath: string, _sourcePath: string): string {
+  async formatLink(targetPath: string, _sourcePath: string): Promise<string> {
     return `[[${targetPath}]]`;
   }
 }
