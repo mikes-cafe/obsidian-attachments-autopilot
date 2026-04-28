@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type AttachmentsAutopilotPlugin from "./main";
 import { resolveAttachmentFolder } from "./services/pathService";
+import { isTemplaterEnabled, getTemplaterFolder, listTemplates } from "./services/templaterService";
 import { t } from "./i18n";
 
 export class AttachmentsAutopilotSettingTab extends PluginSettingTab {
@@ -29,6 +30,36 @@ export class AttachmentsAutopilotSettingTab extends PluginSettingTab {
     this.renderDescription(setting.descEl);
 
     setting.addText((text) => text.setValue(display).setDisabled(true));
+
+    this.renderTemplateSetting(containerEl);
+  }
+
+  private renderTemplateSetting(containerEl: HTMLElement): void {
+    const templaterEnabled = isTemplaterEnabled(this.app);
+    const templates = listTemplates(this.app);
+    const folder = getTemplaterFolder(this.app);
+
+    new Setting(containerEl)
+      .setName(t("settings.template.name"))
+      .setDesc(t("settings.template.desc"))
+      .addDropdown((drop) => {
+        drop.addOption("", t("settings.template.none"));
+        for (const file of templates) {
+          drop.addOption(file.path, file.basename);
+        }
+        drop.setValue(this.plugin.settings.templatePath);
+        drop.onChange(async (value) => {
+          this.plugin.settings.templatePath = value;
+          await this.plugin.saveSettings();
+        });
+      });
+
+    const info = containerEl.createEl("p", { cls: "setting-item-description" });
+    if (templaterEnabled) {
+      info.setText(t("settings.templaterFolder.label", { folder: folder || "(not set)" }));
+    } else {
+      info.setText(t("settings.templaterFolder.missing"));
+    }
   }
 
   private renderDescription(descEl: HTMLElement): void {

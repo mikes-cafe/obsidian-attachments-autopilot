@@ -16,6 +16,19 @@
   "notices.import.cancelled": "未选择文件",
   "notices.base.created": "已创建 {path}",
   "notices.base.updated": "已更新 {path}",
+  "notices.base.disabled.onload": "Attachments Autopilot:核心插件 Bases 已禁用 — 在“设置 → 核心插件 → Bases”中启用之前,“生成包含孪生笔记的 Base 文件”将无法使用。",
+  "notices.base.disabled.command": "核心插件 Bases 已禁用。请在“设置 → 核心插件 → Bases”中启用以生成 Base 文件。",
   "statusbar.processing": "正在处理 {count} 个附件…",
-  "notices.bulk.complete": "已导入 {count} 个附件"
+  "notices.bulk.complete": "已导入 {count} 个附件",
+  "settings.template.name": "孪生笔记默认模板",
+  "settings.template.desc": "创建新孪生笔记时由 Templater 应用的模板。",
+  "settings.template.none": "无 — 使用默认格式",
+  "settings.templaterFolder.label": "Templater 文件夹：{folder}",
+  "settings.templaterFolder.missing": "Templater 未启用。请在「设置 → 第三方插件」中安装。",
+  "notices.templater.disabled": "Attachments Autopilot：Templater 未安装或未启用 — 启用后孪生笔记模板才会生效。",
+  "notices.templater.templateMissing": "Attachments Autopilot：模板「{path}」不存在 — 孪生笔记将使用默认格式。",
+  "modal.templateDecision.title": "是否将模板应用于孪生笔记？",
+  "modal.templateDecision.body": "您正在导入 {count} 个附件。是否将已配置的 Templater 模板应用于所有孪生笔记？",
+  "modal.templateDecision.apply": "全部应用",
+  "modal.templateDecision.skip": "本次跳过"
 }

@@ -16,6 +16,19 @@
   "notices.import.cancelled": "No se seleccionaron archivos",
   "notices.base.created": "Se creó {path}",
   "notices.base.updated": "Se actualizó {path}",
+  "notices.base.disabled.onload": "Attachments Autopilot: el plugin principal Bases está desactivado — Generar archivo base no funcionará hasta que lo actives en Ajustes → Plugins principales → Bases.",
+  "notices.base.disabled.command": "El plugin principal Bases está desactivado. Actívalo en Ajustes → Plugins principales → Bases para generar el archivo base.",
   "statusbar.processing": "Procesando {count} adjunto(s)…",
-  "notices.bulk.complete": "Se importaron {count} adjunto(s)"
+  "notices.bulk.complete": "Se importaron {count} adjunto(s)",
+  "settings.template.name": "Plantilla predeterminada para gemelos",
+  "settings.template.desc": "Plantilla aplicada por Templater al crear un nuevo gemelo.",
+  "settings.template.none": "Ninguna — usar formato predeterminado",
+  "settings.templaterFolder.label": "Carpeta de Templater: {folder}",
+  "settings.templaterFolder.missing": "Templater no está activado. Instálalo en Ajustes → Plugins de la comunidad.",
+  "notices.templater.disabled": "Attachments Autopilot: Templater no está instalado o activado — las plantillas de gemelos no se aplicarán hasta que lo actives.",
+  "notices.templater.templateMissing": "Attachments Autopilot: la plantilla \"{path}\" no existe — los gemelos usarán el formato predeterminado.",
+  "modal.templateDecision.title": "¿Aplicar plantilla a los gemelos?",
+  "modal.templateDecision.body": "Estás importando {count} adjuntos. ¿Aplicar la plantilla de Templater configurada a todos los gemelos?",
+  "modal.templateDecision.apply": "Aplicar a todos",
+  "modal.templateDecision.skip": "Omitir en este lote"
 }

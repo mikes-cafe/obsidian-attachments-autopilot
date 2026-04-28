@@ -16,6 +16,19 @@
   "notices.import.cancelled": "No files selected",
   "notices.base.created": "Created {path}",
   "notices.base.updated": "Updated {path}",
+  "notices.base.disabled.onload": "Attachments Autopilot: Bases core plugin is disabled — Generate base file will not work until you enable it under Settings → Core plugins → Bases.",
+  "notices.base.disabled.command": "Bases core plugin is disabled. Enable it under Settings → Core plugins → Bases to generate the base file.",
   "statusbar.processing": "Processing {count} attachment(s)…",
-  "notices.bulk.complete": "Imported {count} attachment(s)"
+  "notices.bulk.complete": "Imported {count} attachment(s)",
+  "settings.template.name": "Default twin template",
+  "settings.template.desc": "Template applied by Templater when a new twin is created.",
+  "settings.template.none": "None — use default",
+  "settings.templaterFolder.label": "Templater folder: {folder}",
+  "settings.templaterFolder.missing": "Templater is not enabled. Install it under Settings → Community plugins.",
+  "notices.templater.disabled": "Attachments Autopilot: Templater is not installed or enabled — twin templates will not be applied until you enable it.",
+  "notices.templater.templateMissing": "Attachments Autopilot: template \"{path}\" not found — twins will use the default format.",
+  "modal.templateDecision.title": "Apply template to twins?",
+  "modal.templateDecision.body": "You are importing {count} attachments. Apply the configured Templater template to all twins?",
+  "modal.templateDecision.apply": "Apply to all",
+  "modal.templateDecision.skip": "Skip for this batch"
 }

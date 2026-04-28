@@ -16,6 +16,19 @@
   "notices.import.cancelled": "Keine Dateien ausgewählt",
   "notices.base.created": "{path} erstellt",
   "notices.base.updated": "{path} aktualisiert",
+  "notices.base.disabled.onload": "Attachments Autopilot: Das Bases-Kernplugin ist deaktiviert — Base-Datei erzeugen funktioniert erst, wenn du es unter Einstellungen → Kern-Plugins → Bases aktivierst.",
+  "notices.base.disabled.command": "Das Bases-Kernplugin ist deaktiviert. Aktiviere es unter Einstellungen → Kern-Plugins → Bases, um die Base-Datei zu erzeugen.",
   "statusbar.processing": "{count} Anhang/Anhänge werden verarbeitet…",
-  "notices.bulk.complete": "{count} Anhang/Anhänge importiert"
+  "notices.bulk.complete": "{count} Anhang/Anhänge importiert",
+  "settings.template.name": "Standard-Twin-Vorlage",
+  "settings.template.desc": "Vorlage, die Templater beim Erstellen eines neuen Twins anwendet.",
+  "settings.template.none": "Keine — Standard verwenden",
+  "settings.templaterFolder.label": "Templater-Ordner: {folder}",
+  "settings.templaterFolder.missing": "Templater ist nicht aktiviert. Installiere es unter Einstellungen → Community-Plugins.",
+  "notices.templater.disabled": "Attachments Autopilot: Templater ist nicht installiert oder aktiviert — Twin-Vorlagen werden erst angewendet, wenn du es aktivierst.",
+  "notices.templater.templateMissing": "Attachments Autopilot: Vorlage \"{path}\" nicht gefunden — Twins verwenden das Standardformat.",
+  "modal.templateDecision.title": "Vorlage auf Twins anwenden?",
+  "modal.templateDecision.body": "Du importierst {count} Anhänge. Die konfigurierte Templater-Vorlage auf alle Twins anwenden?",
+  "modal.templateDecision.apply": "Auf alle anwenden",
+  "modal.templateDecision.skip": "Für diesen Stapel überspringen"
 }

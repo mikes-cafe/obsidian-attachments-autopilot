@@ -4,12 +4,14 @@ import {
   BASE_FILENAME,
   buildBaseContent,
   generateBaseFile,
+  isBasesEnabled,
 } from "../../src/commands/generateBase";
 
 class FakeApp {
   files = new Map<string, string>();
   createCalls = 0;
   modifyCalls = 0;
+  basesEnabled = true;
 
   vault = {
     getAbstractFileByPath: (p: string) =>
@@ -23,6 +25,12 @@ class FakeApp {
       this.files.set(file.path, data);
     },
   };
+
+  // Mirror the real Obsidian shape: app.internalPlugins.plugins.bases.enabled.
+  // Tests flip basesEnabled to drive the v0.4 guard.
+  get internalPlugins() {
+    return { plugins: { bases: { enabled: this.basesEnabled } } };
+  }
 
   asApp(): App {
     return this as unknown as App;
@@ -49,14 +57,11 @@ describe("buildBaseContent", () => {
     expect(content).toContain("type: cards");
     expect(content).toContain("order:");
     expect(content).toContain("image: note.attachment-prev");
-    // Cards view uses attachment-prev as the image, so it should NOT also be in `order:`
     const orderBlock = content.slice(content.indexOf("order:"), content.indexOf("image:"));
     expect(orderBlock).not.toContain("attachment-prev");
   });
 
   it("matches the PM-customized contract verbatim", () => {
-    // Pinned snapshot of the contract the PM signed off on for v1.1.
-    // Any drift in `buildBaseContent` should fail this test loudly.
     const contract = [
       "filters:",
       "  and:",
@@ -81,12 +86,50 @@ describe("buildBaseContent", () => {
   });
 });
 
+describe("isBasesEnabled", () => {
+  const mk = (internalPlugins: unknown): App =>
+    ({ internalPlugins }) as unknown as App;
+
+  it("returns true when the Bases core plugin is enabled", () => {
+    expect(
+      isBasesEnabled(mk({ plugins: { bases: { enabled: true } } })),
+    ).toBe(true);
+  });
+
+  it("returns false when enabled is explicitly false", () => {
+    expect(
+      isBasesEnabled(mk({ plugins: { bases: { enabled: false } } })),
+    ).toBe(false);
+  });
+
+  it("returns false when enabled is not a boolean", () => {
+    expect(
+      isBasesEnabled(mk({ plugins: { bases: { enabled: undefined } } })),
+    ).toBe(false);
+    expect(
+      isBasesEnabled(mk({ plugins: { bases: { enabled: 1 as unknown as boolean } } })),
+    ).toBe(false);
+  });
+
+  it("returns false when the bases entry is missing", () => {
+    expect(isBasesEnabled(mk({ plugins: {} }))).toBe(false);
+  });
+
+  it("returns false when plugins is missing", () => {
+    expect(isBasesEnabled(mk({}))).toBe(false);
+  });
+
+  it("returns false when internalPlugins is missing entirely", () => {
+    expect(isBasesEnabled({} as App)).toBe(false);
+  });
+});
+
 describe("generateBaseFile", () => {
   it("creates the base file when missing", async () => {
     const app = new FakeApp();
-    const { path, created } = await generateBaseFile(app.asApp());
-    expect(path).toBe(BASE_FILENAME);
-    expect(created).toBe(true);
+    const result = await generateBaseFile(app.asApp());
+    expect(result.status).toBe("created");
+    expect(result.path).toBe(BASE_FILENAME);
     expect(app.createCalls).toBe(1);
     expect(app.modifyCalls).toBe(0);
     expect(app.files.has(BASE_FILENAME)).toBe(true);
@@ -95,12 +138,34 @@ describe("generateBaseFile", () => {
   it("modifies the base file when it already exists", async () => {
     const app = new FakeApp();
     app.files.set(BASE_FILENAME, "old content");
-    const { path, created } = await generateBaseFile(app.asApp());
-    expect(path).toBe(BASE_FILENAME);
-    expect(created).toBe(false);
+    const result = await generateBaseFile(app.asApp());
+    expect(result.status).toBe("updated");
+    expect(result.path).toBe(BASE_FILENAME);
     expect(app.createCalls).toBe(0);
     expect(app.modifyCalls).toBe(1);
     expect(app.files.get(BASE_FILENAME)).toContain("filters:");
     expect(app.files.get(BASE_FILENAME)).not.toBe("old content");
+  });
+
+  // v0.4 guard — refuses to write the .base file when Bases is disabled.
+  it("returns 'skipped-bases-disabled' and writes nothing when Bases is off", async () => {
+    const app = new FakeApp();
+    app.basesEnabled = false;
+    const result = await generateBaseFile(app.asApp());
+    expect(result.status).toBe("skipped-bases-disabled");
+    expect(result.path).toBeNull();
+    expect(app.createCalls).toBe(0);
+    expect(app.modifyCalls).toBe(0);
+    expect(app.files.has(BASE_FILENAME)).toBe(false);
+  });
+
+  it("does not modify an existing base file when Bases is off (clean no-op)", async () => {
+    const app = new FakeApp();
+    app.basesEnabled = false;
+    app.files.set(BASE_FILENAME, "user-edited content");
+    const result = await generateBaseFile(app.asApp());
+    expect(result.status).toBe("skipped-bases-disabled");
+    expect(app.modifyCalls).toBe(0);
+    expect(app.files.get(BASE_FILENAME)).toBe("user-edited content");
   });
 });

@@ -2,9 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   buildTwinContent,
   ensureTwin,
+  ensureFrontmatterKeys,
   extensionOf,
   setTwinPreview,
   setTwinRef,
+  setTwinType,
   type TwinVault,
 } from "../../src/services/twinService";
 
@@ -176,6 +178,64 @@ describe("setTwinRef", () => {
   });
 });
 
+describe("setTwinType", () => {
+  it("replaces an existing attachment-type line", () => {
+    const before = buildTwinContent("[[a/x.png]]", "png");
+    const after = setTwinType(before, "jpeg");
+    expect(after).toContain("attachment-type: jpeg");
+    expect(after).not.toContain("attachment-type: png");
+  });
+
+  it("inserts the property when missing, before the closing fence", () => {
+    const without = ['---', 'attachment-ref: "[[a/x.png]]"', 'attachment-prev:', '---', ''].join("\n");
+    const after = setTwinType(without, "png");
+    expect(after).toContain("attachment-type: png");
+    expect(after.match(/^---\s*$/gm)?.length).toBe(2);
+  });
+});
+
+describe("ensureFrontmatterKeys", () => {
+  it("leaves all three keys when already present", () => {
+    const base = buildTwinContent("[[a/x.png]]", "png");
+    const result = ensureFrontmatterKeys(base, "[[a/x.png]]", "png");
+    expect(result).toContain('attachment-ref: "[[a/x.png]]"');
+    expect(result).toContain("attachment-type: png");
+    expect(result).toContain("attachment-prev:");
+  });
+
+  it("overwrites keys present in rendered template with plugin values", () => {
+    const rendered = [
+      "---",
+      'attachment-ref: "[[wrong]]"',
+      "attachment-type: wrong",
+      "attachment-prev: stale",
+      "---",
+      "# My Template",
+    ].join("\n");
+    const result = ensureFrontmatterKeys(rendered, "[[a/x.png]]", "png");
+    expect(result).toContain('attachment-ref: "[[a/x.png]]"');
+    expect(result).toContain("attachment-type: png");
+    expect(result).not.toContain("wrong");
+    expect(result).toContain("# My Template");
+  });
+
+  it("prepends a frontmatter block when the template has none", () => {
+    const rendered = "# My Template\n\nSome body text.";
+    const result = ensureFrontmatterKeys(rendered, "[[a/x.png]]", "png");
+    expect(result.startsWith("---\n")).toBe(true);
+    expect(result).toContain('attachment-ref: "[[a/x.png]]"');
+    expect(result).toContain("attachment-type: png");
+    expect(result).toContain("attachment-prev:");
+    expect(result).toContain("# My Template");
+  });
+
+  it("sets attachment-prev to empty string (previewService will fill it later)", () => {
+    const rendered = "# Template\n";
+    const result = ensureFrontmatterKeys(rendered, "[[a/photo.png]]", "png");
+    expect(result).toMatch(/^attachment-prev:/m);
+  });
+});
+
 describe("ensureTwin", () => {
   it("creates the twin file and folder when missing", async () => {
     const v = new FakeVault();
@@ -235,5 +295,50 @@ describe("ensureTwin", () => {
     expect(v.files.get("attachments/twin/a_b_.png.md")).toContain(
       'attachment-ref: "[[attachments/a:b?.png]]"',
     );
+  });
+
+  // renderTemplate hook (v0.5 Templater integration)
+  it("applies renderTemplate and merges plugin frontmatter when hook returns content", async () => {
+    const v = new FakeVault();
+    const rendered = "---\ncustom-key: value\n---\n# My Template\n";
+    const renderTemplate = async (_path: string) => rendered;
+    const result = await ensureTwin(v, "attachments/photo.png", "attachments", { renderTemplate });
+    expect(result).toBe("created");
+    const content = v.files.get("attachments/twin/photo.png.md")!;
+    expect(content).toContain('attachment-ref: "[[attachments/photo.png]]"');
+    expect(content).toContain("attachment-type: png");
+    expect(content).toContain("attachment-prev:");
+    expect(content).toContain("custom-key: value");
+    expect(content).toContain("# My Template");
+    expect(v.modifyCalls).toBe(1);
+  });
+
+  it("falls back to stub content when renderTemplate returns null", async () => {
+    const v = new FakeVault();
+    const renderTemplate = async (_path: string): Promise<string | null> => null;
+    const result = await ensureTwin(v, "attachments/photo.png", "attachments", { renderTemplate });
+    expect(result).toBe("created");
+    const content = v.files.get("attachments/twin/photo.png.md")!;
+    expect(content).toContain('attachment-ref: "[[attachments/photo.png]]"');
+    expect(v.modifyCalls).toBe(0);
+  });
+
+  it("behaves identically to no-opts when renderTemplate is not provided", async () => {
+    const v1 = new FakeVault();
+    const v2 = new FakeVault();
+    await ensureTwin(v1, "attachments/photo.png", "attachments");
+    await ensureTwin(v2, "attachments/photo.png", "attachments", {});
+    expect(v1.files.get("attachments/twin/photo.png.md")).toBe(
+      v2.files.get("attachments/twin/photo.png.md"),
+    );
+    expect(v2.modifyCalls).toBe(0);
+  });
+
+  it("hook receives the twin file path", async () => {
+    const v = new FakeVault();
+    let capturedPath = "";
+    const renderTemplate = async (p: string) => { capturedPath = p; return null; };
+    await ensureTwin(v, "attachments/photo.png", "attachments", { renderTemplate });
+    expect(capturedPath).toBe("attachments/twin/photo.png.md");
   });
 });

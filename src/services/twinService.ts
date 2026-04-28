@@ -53,6 +53,7 @@ export function buildTwinContent(refLink: string, extension: string): string {
 
 const PREV_LINE_RE = /^attachment-prev:.*$/m;
 const REF_LINE_RE = /^attachment-ref:.*$/m;
+const TYPE_LINE_RE = /^attachment-type:.*$/m;
 
 const insertBeforeClosingFence = (content: string, line: string): string => {
   let seen = 0;
@@ -78,10 +79,39 @@ export function setTwinRef(content: string, refLink: string): string {
   return insertBeforeClosingFence(content, value);
 }
 
+export function setTwinType(content: string, extension: string): string {
+  const value = `attachment-type: ${extension}`;
+  if (TYPE_LINE_RE.test(content)) {
+    return content.replace(TYPE_LINE_RE, value);
+  }
+  return insertBeforeClosingFence(content, value);
+}
+
+// Ensures attachment-ref, attachment-type, attachment-prev are all present in
+// content that came from a Templater render (which may have its own frontmatter
+// or none at all). If no frontmatter fences exist, a block is prepended.
+export function ensureFrontmatterKeys(
+  content: string,
+  refLink: string,
+  extension: string,
+): string {
+  let result = content;
+  if (!/^---\s*$/m.test(result)) {
+    result = `---\n---\n\n${result}`;
+  }
+  result = setTwinRef(result, refLink);
+  result = setTwinType(result, extension);
+  result = setTwinPreview(result, "");
+  return result;
+}
+
 export async function ensureTwin(
   vault: TwinVault,
   attachmentPath: string,
   attachmentFolder: string,
+  opts?: {
+    renderTemplate?: (twinPath: string) => Promise<string | null>;
+  },
 ): Promise<EnsureTwinResult> {
   const paths = twinPathsFor(attachmentPath, attachmentFolder);
 
@@ -93,6 +123,16 @@ export async function ensureTwin(
 
   const ext = extensionOf(attachmentPath);
   const refLink = await vault.formatLink(attachmentPath, paths.twinFile);
+
   await vault.create(paths.twinFile, buildTwinContent(refLink, ext));
+
+  if (opts?.renderTemplate) {
+    const rendered = await opts.renderTemplate(paths.twinFile);
+    if (rendered !== null) {
+      const merged = ensureFrontmatterKeys(rendered, refLink, ext);
+      await vault.modify(paths.twinFile, merged);
+    }
+  }
+
   return "created";
 }

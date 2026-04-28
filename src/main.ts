@@ -14,18 +14,54 @@ import {
 import { findOrphanAttachments } from "./commands/generateMissingTwins";
 import { findAttachmentsWithoutPreview } from "./commands/generateMissingPreviews";
 import { runImportFromDevice } from "./commands/importFromDevice";
-import { generateBaseFile } from "./commands/generateBase";
+import { generateBaseFile, isBasesEnabled } from "./commands/generateBase";
+import { isTemplaterEnabled, buildRenderHook } from "./services/templaterService";
+import { TemplateDecisionModal } from "./ui/TemplateDecisionModal";
 import { t } from "./i18n";
+
+interface PluginSettings {
+  templatePath: string;
+}
+
+const DEFAULT_SETTINGS: PluginSettings = { templatePath: "" };
 
 export default class AttachmentsAutopilotPlugin extends Plugin {
   private queue!: TwinQueue;
+  settings!: PluginSettings;
+
+  private async loadSettings(): Promise<void> {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+
+  async saveSettings(): Promise<void> {
+    await this.saveData(this.settings);
+  }
 
   async onload(): Promise<void> {
+    await this.loadSettings();
     const twinVault = fromObsidianVault(this.app);
+
+    let templateDecision: "apply" | "skip" | null = null;
 
     this.queue = new TwinQueue(async (attachmentPath) => {
       const folder = resolveAttachmentFolder(this.app);
-      await ensureTwin(twinVault, attachmentPath, folder);
+      const { templatePath } = this.settings;
+      const templaterActive = templatePath && isTemplaterEnabled(this.app);
+
+      let renderTemplate: ((p: string) => Promise<string | null>) | undefined;
+      if (templaterActive) {
+        const queueSize = this.queue.size();
+        if (queueSize >= PROGRESS_THRESHOLD && templateDecision === null) {
+          const modal = new TemplateDecisionModal(this.app, queueSize);
+          modal.open();
+          templateDecision = await modal.result;
+        }
+        if (templateDecision !== "skip") {
+          renderTemplate = buildRenderHook(this.app, templatePath);
+        }
+      }
+
+      await ensureTwin(twinVault, attachmentPath, folder, { renderTemplate });
       let previewResult: Awaited<ReturnType<typeof ensurePreview>> = "skipped";
       try {
         previewResult = await ensurePreview(twinVault, attachmentPath, folder);
@@ -65,6 +101,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
         statusBar.style.display = "none";
         peakSize = 0;
         bulkAnnounced = false;
+        templateDecision = null;
       }
     });
 
@@ -174,12 +211,38 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
       id: "generate-base",
       name: t("commands.generateBase.name"),
       callback: async () => {
-        const { path, created } = await generateBaseFile(this.app);
+        const result = await generateBaseFile(this.app);
+        if (result.status === "skipped-bases-disabled") {
+          new Notice(t("notices.base.disabled.command"));
+          return;
+        }
         new Notice(
-          t(created ? "notices.base.created" : "notices.base.updated", { path }),
+          t(
+            result.status === "created"
+              ? "notices.base.created"
+              : "notices.base.updated",
+            { path: result.path ?? "" },
+          ),
         );
       },
     });
+
+    // Surface the Bases-disabled state once per plugin load so users without
+    // the Bases core plugin know why `Generate base file` won't work. Fires
+    // after every other registration so the Notice doesn't compete with
+    // Obsidian's own startup chatter.
+    if (!isBasesEnabled(this.app)) {
+      new Notice(t("notices.base.disabled.onload"));
+    }
+
+    const { templatePath } = this.settings;
+    if (templatePath) {
+      if (!isTemplaterEnabled(this.app)) {
+        new Notice(t("notices.templater.disabled"));
+      } else if (!this.app.vault.getAbstractFileByPath(templatePath)) {
+        new Notice(t("notices.templater.templateMissing", { path: templatePath }));
+      }
+    }
   }
 
   onunload(): void {}

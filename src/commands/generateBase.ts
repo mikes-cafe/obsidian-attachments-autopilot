@@ -2,6 +2,20 @@ import type { App, TFile } from "obsidian";
 
 export const BASE_FILENAME = "Attachments.base";
 
+/**
+ * Whether Obsidian's Bases core plugin is currently enabled. The `.base` file
+ * we generate only renders as a cards / table view when Bases is on — without
+ * it, the file is plain YAML text. Probed via `app.internalPlugins`, which is
+ * an undocumented but stable surface (used by every plugin that needs to
+ * detect a core plugin's state).
+ */
+export function isBasesEnabled(app: App): boolean {
+  const internal = (app as unknown as {
+    internalPlugins?: { plugins?: Record<string, { enabled?: boolean }> };
+  }).internalPlugins;
+  return internal?.plugins?.bases?.enabled === true;
+}
+
 export function buildBaseContent(): string {
   return [
     "filters:",
@@ -26,18 +40,29 @@ export function buildBaseContent(): string {
   ].join("\n");
 }
 
+export type GenerateBaseStatus = "created" | "updated" | "skipped-bases-disabled";
+
 export interface GenerateBaseResult {
-  path: string;
-  created: boolean;
+  status: GenerateBaseStatus;
+  /** `null` when the operation was skipped. */
+  path: string | null;
 }
 
 export async function generateBaseFile(app: App): Promise<GenerateBaseResult> {
+  // Refuse to write a `.base` file when Bases isn't running. Without Bases,
+  // the file would just sit in the vault as plain YAML — confusing, and easy
+  // to mistake for a plugin failure. Caller (main.ts) emits a user-facing
+  // Notice when this status comes back.
+  if (!isBasesEnabled(app)) {
+    return { status: "skipped-bases-disabled", path: null };
+  }
+
   const content = buildBaseContent();
   const existing = app.vault.getAbstractFileByPath(BASE_FILENAME);
   if (existing) {
     await app.vault.modify(existing as TFile, content);
-    return { path: BASE_FILENAME, created: false };
+    return { status: "updated", path: BASE_FILENAME };
   }
   await app.vault.create(BASE_FILENAME, content);
-  return { path: BASE_FILENAME, created: true };
+  return { status: "created", path: BASE_FILENAME };
 }

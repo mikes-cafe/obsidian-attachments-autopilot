@@ -16,6 +16,19 @@
   "notices.import.cancelled": "Aucun fichier sélectionné",
   "notices.base.created": "{path} créé",
   "notices.base.updated": "{path} mis à jour",
+  "notices.base.disabled.onload": "Attachments Autopilot : le plugin principal Bases est désactivé — Générer le fichier base ne fonctionnera pas tant que vous ne l'activerez pas dans Paramètres → Plugins principaux → Bases.",
+  "notices.base.disabled.command": "Le plugin principal Bases est désactivé. Activez-le dans Paramètres → Plugins principaux → Bases pour générer le fichier base.",
   "statusbar.processing": "Traitement de {count} pièce(s) jointe(s)…",
-  "notices.bulk.complete": "{count} pièce(s) jointe(s) importée(s)"
+  "notices.bulk.complete": "{count} pièce(s) jointe(s) importée(s)",
+  "settings.template.name": "Modèle de jumeau par défaut",
+  "settings.template.desc": "Modèle appliqué par Templater lors de la création d'un nouveau jumeau.",
+  "settings.template.none": "Aucun — utiliser le format par défaut",
+  "settings.templaterFolder.label": "Dossier Templater : {folder}",
+  "settings.templaterFolder.missing": "Templater n'est pas activé. Installez-le dans Paramètres → Plugins communautaires.",
+  "notices.templater.disabled": "Attachments Autopilot : Templater n'est pas installé ou activé — les modèles de jumeaux ne seront pas appliqués tant que vous ne l'activerez pas.",
+  "notices.templater.templateMissing": "Attachments Autopilot : le modèle \"{path}\" est introuvable — les jumeaux utiliseront le format par défaut.",
+  "modal.templateDecision.title": "Appliquer le modèle aux jumeaux ?",
+  "modal.templateDecision.body": "Vous importez {count} pièces jointes. Appliquer le modèle Templater configuré à tous les jumeaux ?",
+  "modal.templateDecision.apply": "Appliquer à tous",
+  "modal.templateDecision.skip": "Ignorer pour ce lot"
 }
