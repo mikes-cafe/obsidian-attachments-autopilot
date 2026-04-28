@@ -117,9 +117,45 @@ describe("resolveAttachmentFolder", () => {
     expect(resolveAttachmentFolder(mkApp(""))).toBe("");
     expect(resolveAttachmentFolder(mkApp(undefined))).toBe("");
     expect(resolveAttachmentFolder(mkApp(null))).toBe("");
+    expect(resolveAttachmentFolder(mkApp(123))).toBe("");
+    expect(resolveAttachmentFolder(mkApp(false))).toBe("");
   });
 
   it("returns empty string when getConfig is missing", () => {
     expect(resolveAttachmentFolder({ vault: {} } as never)).toBe("");
+  });
+
+  // §13.1 of the QA plan — exhaustively cover every attachment-folder shape we
+  // know users can configure, plus defensive cases (whitespace, doubled
+  // slashes, unicode). Pinned here so a regression in `stripSlashes` is caught
+  // before it ships.
+  describe("normalizer matrix", () => {
+    const cases: Array<{ name: string; input: unknown; folder: string; twinFile: string }> = [
+      { name: "default 'attachments'",     input: "attachments",     folder: "attachments",     twinFile: "attachments/twin/photo.png.md" },
+      { name: "vault root (empty)",         input: "",                folder: "",                twinFile: "twin/photo.png.md" },
+      { name: "nested 'notes/files'",       input: "notes/files",     folder: "notes/files",     twinFile: "notes/files/twin/photo.png.md" },
+      { name: "wrapping slashes",           input: "/attachments/",   folder: "attachments",     twinFile: "attachments/twin/photo.png.md" },
+      { name: "spaces in folder",           input: "My Attachments",  folder: "My Attachments",  twinFile: "My Attachments/twin/photo.png.md" },
+      { name: "unicode + trailing slash",   input: "附件/",            folder: "附件",             twinFile: "附件/twin/photo.png.md" },
+      { name: "doubled slashes",            input: "//attachments//", folder: "attachments",     twinFile: "attachments/twin/photo.png.md" },
+      { name: "leading + trailing whitespace", input: "   attachments   ", folder: "attachments", twinFile: "attachments/twin/photo.png.md" },
+    ];
+
+    for (const c of cases) {
+      it(`${c.name}: resolves and produces the expected twin path`, () => {
+        const folder = resolveAttachmentFolder(mkApp(c.input));
+        expect(folder).toBe(c.folder);
+        const sourcePath = c.folder === "" ? "photo.png" : `${c.folder}/photo.png`;
+        const p = twinPathsFor(sourcePath, folder);
+        expect(p.twinFile).toBe(c.twinFile);
+      });
+    }
+
+    it("isInsideAttachmentFolder agrees with the normalized folder", () => {
+      const folder = resolveAttachmentFolder(mkApp("//My Attachments//"));
+      expect(folder).toBe("My Attachments");
+      expect(isInsideAttachmentFolder("My Attachments/photo.png", folder)).toBe(true);
+      expect(isInsideAttachmentFolder("OtherFolder/photo.png", folder)).toBe(false);
+    });
   });
 });

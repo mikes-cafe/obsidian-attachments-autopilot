@@ -43,11 +43,41 @@ describe("buildBaseContent", () => {
     expect(content).toContain("attachment-prev:");
   });
 
-  it("defines a table view with column ordering", () => {
+  it("defines a cards view with column ordering and image binding", () => {
     const content = buildBaseContent();
     expect(content).toContain("views:");
-    expect(content).toContain("type: table");
+    expect(content).toContain("type: cards");
     expect(content).toContain("order:");
+    expect(content).toContain("image: note.attachment-prev");
+    // Cards view uses attachment-prev as the image, so it should NOT also be in `order:`
+    const orderBlock = content.slice(content.indexOf("order:"), content.indexOf("image:"));
+    expect(orderBlock).not.toContain("attachment-prev");
+  });
+
+  it("matches the PM-customized contract verbatim", () => {
+    // Pinned snapshot of the contract the PM signed off on for v1.1.
+    // Any drift in `buildBaseContent` should fail this test loudly.
+    const contract = [
+      "filters:",
+      "  and:",
+      '    - file.hasProperty("attachment-ref")',
+      "properties:",
+      "  attachment-ref:",
+      "    displayName: File",
+      "  attachment-type:",
+      "    displayName: Type",
+      "  attachment-prev:",
+      "    displayName: Preview",
+      "views:",
+      "  - type: cards",
+      "    name: All attachments",
+      "    order:",
+      "      - file.name",
+      "      - attachment-type",
+      "      - attachment-ref",
+      "    image: note.attachment-prev",
+    ].join("\n");
+    expect(buildBaseContent().trim()).toBe(contract);
   });
 });
 

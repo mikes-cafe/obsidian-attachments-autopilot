@@ -4,6 +4,7 @@ import {
   ensureTwin,
   extensionOf,
   setTwinPreview,
+  setTwinRef,
   type TwinVault,
 } from "../../src/services/twinService";
 
@@ -42,6 +43,24 @@ class FakeVault implements TwinVault {
   async modify(p: string, data: string): Promise<void> {
     this.modifyCalls += 1;
     this.files.set(p, data);
+  }
+  async rename(oldPath: string, newPath: string): Promise<void> {
+    if (this.files.has(oldPath)) {
+      const v = this.files.get(oldPath)!;
+      this.files.delete(oldPath);
+      this.files.set(newPath, v);
+    } else if (this.binary.has(oldPath)) {
+      const v = this.binary.get(oldPath)!;
+      this.binary.delete(oldPath);
+      this.binary.set(newPath, v);
+    } else {
+      throw new Error(`Not found: ${oldPath}`);
+    }
+  }
+  async delete(p: string): Promise<void> {
+    this.files.delete(p);
+    this.binary.delete(p);
+    this.folders.delete(p);
   }
 }
 
@@ -102,6 +121,33 @@ describe("setTwinPreview", () => {
     const after = setTwinPreview(before, "a/twin/preview/x.png");
     expect(after).toContain('attachment-ref: "[[a/x.png]]"');
     expect(after).toContain("attachment-type: png");
+  });
+});
+
+describe("setTwinRef", () => {
+  it("replaces the existing attachment-ref line", () => {
+    const before = buildTwinContent("a/old.png", "png");
+    const after = setTwinRef(before, "a/new.png");
+    expect(after).toContain('attachment-ref: "[[a/new.png]]"');
+    expect(after).not.toContain("a/old.png");
+  });
+
+  it("preserves attachment-type and attachment-prev when only the ref changes", () => {
+    const before = buildTwinContent("a/x.png", "png").replace(
+      "attachment-prev:",
+      'attachment-prev: "[[a/twin/preview/x.png.png]]"',
+    );
+    const after = setTwinRef(before, "b/y.png");
+    expect(after).toContain("attachment-type: png");
+    expect(after).toContain('attachment-prev: "[[a/twin/preview/x.png.png]]"');
+    expect(after).toContain('attachment-ref: "[[b/y.png]]"');
+  });
+
+  it("inserts the property when missing, before the closing fence", () => {
+    const without = ['---', "attachment-type: png", "attachment-prev:", '---', ''].join("\n");
+    const after = setTwinRef(without, "a/x.png");
+    expect(after).toContain('attachment-ref: "[[a/x.png]]"');
+    expect(after.match(/^---\s*$/gm)?.length).toBe(2);
   });
 });
 

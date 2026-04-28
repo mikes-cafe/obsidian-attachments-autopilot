@@ -33,6 +33,20 @@ class FakeVault implements TwinVault {
   async modify(p: string, d: string): Promise<void> {
     this.files.set(p, d);
   }
+  async rename(oldPath: string, newPath: string): Promise<void> {
+    for (const map of [this.files, this.binary] as Array<Map<string, string | ArrayBuffer>>) {
+      if (map.has(oldPath)) {
+        map.set(newPath, map.get(oldPath) as never);
+        map.delete(oldPath);
+        return;
+      }
+    }
+  }
+  async delete(p: string): Promise<void> {
+    this.files.delete(p);
+    this.binary.delete(p);
+    this.folders.delete(p);
+  }
 }
 
 const buf = (text: string) => new TextEncoder().encode(text).buffer;
@@ -124,5 +138,57 @@ describe("ensurePreview", () => {
     const result = await ensurePreview(v, "attachments/photo.png", "attachments", gens);
     expect(result).toBe("created");
     expect(v.binary.has("attachments/twin/preview/photo.png.png")).toBe(true);
+  });
+
+  it("isolates a failing pdf generator from a working png generator (cross-generator independence)", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const v = new FakeVault();
+    v.binary.set("attachments/doc.pdf", buf("pdfsrc"));
+    v.binary.set("attachments/photo.png", buf("imgsrc"));
+    const gens = {
+      pdf: makeGen({
+        exts: ["pdf"],
+        outputExt: "png",
+        generate: vi.fn(async () => {
+          throw new Error("pdfjs imploded");
+        }),
+      }),
+      png: makeGen(),
+    };
+
+    const pdfResult = await ensurePreview(v, "attachments/doc.pdf", "attachments", gens);
+    const pngResult = await ensurePreview(v, "attachments/photo.png", "attachments", gens);
+
+    expect(pdfResult).toBe("failed");
+    expect(pngResult).toBe("created");
+    expect(v.binary.has("attachments/twin/preview/photo.png.png")).toBe(true);
+    expect(v.binary.has("attachments/twin/preview/doc.pdf.png")).toBe(false);
+    errSpy.mockRestore();
+  });
+
+  it("isolates a failing video generator the same way", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const v = new FakeVault();
+    v.binary.set("attachments/clip.mp4", buf("vidsrc"));
+    v.binary.set("attachments/song.mp3", buf("audsrc"));
+    const gens = {
+      mp4: makeGen({
+        exts: ["mp4"],
+        outputExt: "gif",
+        generate: vi.fn(async () => {
+          throw new Error("gifenc imploded");
+        }),
+      }),
+      mp3: makeGen({ exts: ["mp3"], outputExt: "svg" }),
+    };
+
+    const mp4Result = await ensurePreview(v, "attachments/clip.mp4", "attachments", gens);
+    const mp3Result = await ensurePreview(v, "attachments/song.mp3", "attachments", gens);
+
+    expect(mp4Result).toBe("failed");
+    expect(mp3Result).toBe("created");
+    expect(v.binary.has("attachments/twin/preview/song.mp3.svg")).toBe(true);
+    expect(v.binary.has("attachments/twin/preview/clip.mp4.gif")).toBe(false);
+    errSpy.mockRestore();
   });
 });
