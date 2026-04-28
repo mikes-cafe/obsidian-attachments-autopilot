@@ -47,6 +47,9 @@ class FakeVault implements TwinVault {
     this.binary.delete(p);
     this.folders.delete(p);
   }
+  formatLink(targetPath: string, _sourcePath: string): string {
+    return `[[${targetPath}]]`;
+  }
 }
 
 const buf = (text: string) => new TextEncoder().encode(text).buffer;

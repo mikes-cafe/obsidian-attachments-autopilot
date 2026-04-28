@@ -71,6 +71,79 @@ describe("TwinQueue", () => {
     await expect(q.idle()).resolves.toBeUndefined();
   });
 
+  it("onChange listener fires on enqueue, mid-drain, and at idle", async () => {
+    const q = new TwinQueue(async () => {
+      await tick();
+    });
+    const states: Array<{ pending: number; active: number; tombstoned: number }> = [];
+    q.onChange((s) => states.push({ ...s }));
+
+    q.enqueue("a");
+    q.enqueue("b");
+    await q.idle();
+
+    // We saw at least one state with active > 0 (mid-drain), plus a final idle
+    // state with everything zeroed out.
+    expect(states.some((s) => s.active > 0)).toBe(true);
+    expect(states[states.length - 1]).toEqual({
+      pending: 0,
+      active: 0,
+      tombstoned: 0,
+    });
+  });
+
+  it("onChange reports tombstoned count after a worker failure", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const q = new TwinQueue(async () => {
+      throw new Error("boom");
+    });
+    let lastState: { pending: number; active: number; tombstoned: number } | null = null;
+    q.onChange((s) => {
+      lastState = { ...s };
+    });
+    q.enqueue("a");
+    await q.idle();
+    expect(lastState!.tombstoned).toBe(1);
+    errSpy.mockRestore();
+  });
+
+  it("onChange fires for clearTombstone and markFailed", () => {
+    const q = new TwinQueue(async () => undefined);
+    let calls = 0;
+    q.onChange(() => {
+      calls += 1;
+    });
+    q.markFailed("a");
+    q.clearTombstone("a");
+    expect(calls).toBe(2);
+  });
+
+  it("a throwing listener doesn't break the queue or the other listeners", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const q = new TwinQueue(async () => undefined);
+    let goodCalls = 0;
+    q.onChange(() => {
+      throw new Error("listener boom");
+    });
+    q.onChange(() => {
+      goodCalls += 1;
+    });
+    q.enqueue("a");
+    await q.idle();
+    expect(goodCalls).toBeGreaterThan(0);
+    errSpy.mockRestore();
+  });
+
+  it("state() returns a snapshot of the current counts", () => {
+    const q = new TwinQueue(async () => new Promise(() => undefined));
+    q.enqueue("a");
+    q.enqueue("b");
+    q.markFailed("c");
+    const s = q.state();
+    expect(s.pending + s.active).toBe(2);
+    expect(s.tombstoned).toBe(1);
+  });
+
   it("tombstones a path that fails so it isn't re-run on future enqueues", async () => {
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     let runs = 0;

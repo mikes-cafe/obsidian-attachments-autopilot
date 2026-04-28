@@ -20,7 +20,39 @@ export class AttachmentsAutopilotSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName(t("settings.attachmentFolder.name"))
-      .setDesc(t("settings.attachmentFolder.desc"))
+      .setDesc(this.buildDesc())
       .addText((text) => text.setValue(display).setDisabled(true));
+  }
+
+  /**
+   * Build the description as a DocumentFragment so the localized "Files & Links"
+   * substring becomes a clickable anchor that opens the corresponding Obsidian
+   * settings tab. The localized templates use a `{link}` placeholder split on
+   * here.
+   */
+  private buildDesc(): DocumentFragment {
+    const fragment = document.createDocumentFragment();
+    const template = t("settings.attachmentFolder.desc");
+    const linkText = t("settings.attachmentFolder.desc.linkText");
+    const [before, after = ""] = template.split("{link}");
+
+    fragment.appendChild(document.createTextNode(before));
+
+    const anchor = document.createElement("a");
+    anchor.textContent = linkText;
+    anchor.href = "#";
+    anchor.addEventListener("click", (evt) => {
+      evt.preventDefault();
+      // Obsidian's settings registry id for the "Files & Links" tab is "file".
+      const setting = (this.app as unknown as {
+        setting?: { open?: () => void; openTabById?: (id: string) => void };
+      }).setting;
+      setting?.open?.();
+      setting?.openTabById?.("file");
+    });
+    fragment.appendChild(anchor);
+
+    fragment.appendChild(document.createTextNode(after));
+    return fragment;
   }
 }

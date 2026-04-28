@@ -103,10 +103,14 @@ export async function renameTwin(
   //   - attachment-ref points at the new attachment path
   //   - attachment-prev points at the new preview path (if a preview exists)
   // Doing this BEFORE renaming means the rename carries the corrected content.
+  // Links are formatted relative to the twin's *new* path so that link-format
+  // settings like `relative` resolve correctly once the rename completes.
   if (oldContent !== null) {
-    let updated = setTwinRef(oldContent, newAttachmentPath);
+    const refLink = vault.formatLink(newAttachmentPath, newPaths.twinFile);
+    let updated = setTwinRef(oldContent, refLink);
     if (newPreviewPath !== null) {
-      updated = setTwinPreview(updated, newPreviewPath);
+      const prevLink = vault.formatLink(newPreviewPath, newPaths.twinFile);
+      updated = setTwinPreview(updated, prevLink);
     }
     if (updated !== oldContent) {
       await vault.modify(oldPaths.twinFile, updated);
