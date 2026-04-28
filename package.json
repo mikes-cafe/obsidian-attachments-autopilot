@@ -1,0 +1,35 @@
+{
+  "name": "attachment-autopilot",
+  "version": "0.1.0",
+  "description": "Obsidian plugin: queryable twin markdown notes for non-markdown attachments.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc --noEmit && node esbuild.config.mjs production",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "attachments",
+    "bases",
+    "twin"
+  ],
+  "author": "Miguel Baquero",
+  "license": "MIT",
+  "dependencies": {
+    "gifenc": "^1.0.3",
+    "pdfjs-dist": "^4.10.38"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.21.0",
+    "obsidian": "latest",
+    "tslib": "^2.6.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}

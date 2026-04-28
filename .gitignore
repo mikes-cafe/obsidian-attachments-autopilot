@@ -1,0 +1,12 @@
+node_modules/
+dist/
+main.js
+*.log
+.DS_Store
+*.md
+
+# Local-only — do not push
+test-vault/
+test-fixtures/
+scripts/
+qa_e2e_plan.md

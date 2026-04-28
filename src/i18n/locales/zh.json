@@ -1,0 +1,18 @@
+{
+  "settings.attachmentFolder.name": "附件文件夹",
+  "settings.attachmentFolder.desc": "在 Obsidian → 设置 → 文件与链接 → 新附件的默认位置中配置。Attachment Autopilot 会监视此文件夹。",
+  "settings.attachmentFolder.vaultRoot": "（仓库根目录）",
+  "commands.generateMissingTwins.name": "为孤立附件生成孪生笔记",
+  "commands.generateMissingPreviews.name": "为缺少预览的孪生笔记生成预览",
+  "commands.importFromDevice.name": "从设备导入文件",
+  "commands.generateBase.name": "生成包含孪生笔记的 Base 文件",
+  "notices.twin.queued": "已将 {count} 个孪生笔记加入创建队列",
+  "notices.twin.noOrphans": "未找到孤立附件",
+  "notices.preview.queued": "已将 {count} 个预览加入生成队列",
+  "notices.preview.allPresent": "所有孪生笔记都已有预览",
+  "notices.import.success": "已导入 {count} 个文件",
+  "notices.import.partial": "已导入 {imported} 个文件;{failed} 个失败",
+  "notices.import.cancelled": "未选择文件",
+  "notices.base.created": "已创建 {path}",
+  "notices.base.updated": "已更新 {path}"
+}

@@ -1,0 +1,18 @@
+{
+  "settings.attachmentFolder.name": "Carpeta de adjuntos",
+  "settings.attachmentFolder.desc": "Configurada en Obsidian → Ajustes → Archivos y enlaces → Ubicación predeterminada para adjuntos nuevos. Attachment Autopilot supervisa esta carpeta.",
+  "settings.attachmentFolder.vaultRoot": "(raíz de la bóveda)",
+  "commands.generateMissingTwins.name": "Generar gemelos para adjuntos huérfanos",
+  "commands.generateMissingPreviews.name": "Generar previsualizaciones para gemelos sin una",
+  "commands.importFromDevice.name": "Importar archivos desde el dispositivo",
+  "commands.generateBase.name": "Generar archivo base con gemelos",
+  "notices.twin.queued": "{count} gemelo(s) en cola para creación",
+  "notices.twin.noOrphans": "No se encontraron adjuntos huérfanos",
+  "notices.preview.queued": "{count} previsualización(es) en cola para generación",
+  "notices.preview.allPresent": "Todos los gemelos ya tienen previsualización",
+  "notices.import.success": "{count} archivo(s) importado(s)",
+  "notices.import.partial": "{imported} archivo(s) importado(s); {failed} fallaron",
+  "notices.import.cancelled": "No se seleccionaron archivos",
+  "notices.base.created": "Se creó {path}",
+  "notices.base.updated": "Se actualizó {path}"
+}

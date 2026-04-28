@@ -1,0 +1,18 @@
+{
+  "settings.attachmentFolder.name": "Dossier des pièces jointes",
+  "settings.attachmentFolder.desc": "Défini dans Obsidian → Paramètres → Fichiers et liens → Emplacement par défaut des nouvelles pièces jointes. Attachment Autopilot surveille ce dossier.",
+  "settings.attachmentFolder.vaultRoot": "(racine du coffre)",
+  "commands.generateMissingTwins.name": "Générer les jumeaux pour les pièces jointes orphelines",
+  "commands.generateMissingPreviews.name": "Générer les aperçus pour les jumeaux sans aperçu",
+  "commands.importFromDevice.name": "Importer des fichiers depuis l'appareil",
+  "commands.generateBase.name": "Générer le fichier base avec les jumeaux",
+  "notices.twin.queued": "{count} jumeau(x) en file d'attente",
+  "notices.twin.noOrphans": "Aucune pièce jointe orpheline trouvée",
+  "notices.preview.queued": "{count} aperçu(s) en file d'attente",
+  "notices.preview.allPresent": "Tous les jumeaux ont déjà un aperçu",
+  "notices.import.success": "{count} fichier(s) importé(s)",
+  "notices.import.partial": "{imported} fichier(s) importé(s) ; {failed} en échec",
+  "notices.import.cancelled": "Aucun fichier sélectionné",
+  "notices.base.created": "{path} créé",
+  "notices.base.updated": "{path} mis à jour"
+}

@@ -1,0 +1,18 @@
+{
+  "settings.attachmentFolder.name": "Attachment folder",
+  "settings.attachmentFolder.desc": "Set in Obsidian → Settings → Files & Links → Default location for new attachments. Attachment Autopilot watches this folder.",
+  "settings.attachmentFolder.vaultRoot": "(vault root)",
+  "commands.generateMissingTwins.name": "Generate twins for orphan attachments",
+  "commands.generateMissingPreviews.name": "Generate previews for twins without one",
+  "commands.importFromDevice.name": "Import files from device",
+  "commands.generateBase.name": "Generate base file with twins",
+  "notices.twin.queued": "Queued {count} twin(s) for creation",
+  "notices.twin.noOrphans": "No orphan attachments found",
+  "notices.preview.queued": "Queued {count} preview(s) for generation",
+  "notices.preview.allPresent": "All twins already have a preview",
+  "notices.import.success": "Imported {count} file(s)",
+  "notices.import.partial": "Imported {imported} file(s); {failed} failed",
+  "notices.import.cancelled": "No files selected",
+  "notices.base.created": "Created {path}",
+  "notices.base.updated": "Updated {path}"
+}
