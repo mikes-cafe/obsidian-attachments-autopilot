@@ -6,6 +6,11 @@ import { TwinQueue } from "./services/twinQueue";
 import { fromObsidianVault } from "./services/obsidianVault";
 import { resolveAttachmentFolder } from "./services/pathService";
 import { shouldTwin } from "./events/vaultWatcher";
+import {
+  classifyTransition,
+  deleteTwin,
+  renameTwin,
+} from "./services/lifecycleService";
 import { findOrphanAttachments } from "./commands/generateMissingTwins";
 import { findAttachmentsWithoutPreview } from "./commands/generateMissingPreviews";
 import { runImportFromDevice } from "./commands/importFromDevice";
@@ -16,7 +21,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
   private queue!: TwinQueue;
 
   async onload(): Promise<void> {
-    const twinVault = fromObsidianVault(this.app.vault);
+    const twinVault = fromObsidianVault(this.app);
 
     this.queue = new TwinQueue(async (attachmentPath) => {
       const folder = resolveAttachmentFolder(this.app);
@@ -45,10 +50,43 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
       }),
     );
 
-    // If the user removes a file we previously gave up on, clear its tombstone so
-    // a fresh copy with the same path can be retried.
     this.registerEvent(
-      this.app.vault.on("delete", (file: TAbstractFile) => {
+      this.app.vault.on("rename", async (file: TAbstractFile, oldPath: string) => {
+        const folder = resolveAttachmentFolder(this.app);
+        const action = classifyTransition(oldPath, file.path, folder);
+        try {
+          if (action === "create") {
+            this.queue.enqueue(file.path);
+          } else if (action === "delete") {
+            await deleteTwin(twinVault, oldPath, folder);
+          } else if (action === "rename") {
+            await renameTwin(twinVault, oldPath, file.path, folder);
+          }
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn("[attachments-autopilot] rename handler failed", oldPath, file.path, err);
+        }
+        // Clear tombstones keyed on either path so the renamed/replaced file can be retried.
+        this.queue.clearTombstone(oldPath);
+        this.queue.clearTombstone(file.path);
+      }),
+    );
+
+    // Removing the source attachment removes its twin + preview; also clears the
+    // tombstone so a fresh copy with the same path can be retried.
+    this.registerEvent(
+      this.app.vault.on("delete", async (file: TAbstractFile) => {
+        const folder = resolveAttachmentFolder(this.app);
+        if (
+          classifyTransition(file.path, null, folder) === "delete"
+        ) {
+          try {
+            await deleteTwin(twinVault, file.path, folder);
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.warn("[attachments-autopilot] delete handler failed", file.path, err);
+          }
+        }
         this.queue.clearTombstone(file.path);
       }),
     );

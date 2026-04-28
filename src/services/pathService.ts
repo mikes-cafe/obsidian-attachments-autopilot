@@ -7,7 +7,10 @@ export interface TwinPaths {
   previewFile: (ext: string) => string;
 }
 
-const stripSlashes = (s: string): string => s.replace(/^\/+|\/+$/g, "");
+// Normalize a configured folder string: trim surrounding whitespace, collapse
+// leading/trailing slashes (including doubled slashes). Internal "/" separators
+// inside the path are preserved.
+const stripSlashes = (s: string): string => s.trim().replace(/^\/+|\/+$/g, "");
 
 const INVALID_BASENAME_CHARS = /[\\/:*?"<>|]/g;
 

@@ -107,6 +107,36 @@ describe("TwinQueue", () => {
     expect(runs).toBe(0);
   });
 
+  it("handles a rapid create + delete + create on the same path (full cycle)", async () => {
+    // Simulates the watcher path: file is created, the queue tries to twin it
+    // and fails, then the user deletes the source (clearing tombstone), then
+    // creates it again. Expectation: both runs execute, final state is clean.
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    let runs = 0;
+    let shouldFail = true;
+    const q = new TwinQueue(async () => {
+      runs += 1;
+      if (shouldFail) throw new Error("first attempt fails");
+    });
+
+    q.enqueue("attachments/photo.png");
+    await q.idle();
+    expect(runs).toBe(1);
+    expect(q.tombstoned("attachments/photo.png")).toBe(true);
+
+    // vault.delete fires → main.ts clears tombstone
+    q.clearTombstone("attachments/photo.png");
+    expect(q.tombstoned("attachments/photo.png")).toBe(false);
+
+    // re-create works
+    shouldFail = false;
+    q.enqueue("attachments/photo.png");
+    await q.idle();
+    expect(runs).toBe(2);
+    expect(q.tombstoned("attachments/photo.png")).toBe(false);
+    errSpy.mockRestore();
+  });
+
   it("clearTombstone(path) lets a previously-failed path be retried", async () => {
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     let runs = 0;

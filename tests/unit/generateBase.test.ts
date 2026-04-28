@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { App } from "obsidian";
 import {
   BASE_FILENAME,
@@ -43,11 +45,22 @@ describe("buildBaseContent", () => {
     expect(content).toContain("attachment-prev:");
   });
 
-  it("defines a table view with column ordering", () => {
+  it("defines a cards view with column ordering and image binding", () => {
     const content = buildBaseContent();
     expect(content).toContain("views:");
-    expect(content).toContain("type: table");
+    expect(content).toContain("type: cards");
     expect(content).toContain("order:");
+    expect(content).toContain("image: note.attachment-prev");
+    // Cards view uses attachment-prev as the image, so it should NOT also be in `order:`
+    const orderBlock = content.slice(content.indexOf("order:"), content.indexOf("image:"));
+    expect(orderBlock).not.toContain("attachment-prev");
+  });
+
+  it("matches the PM-customized contract in test-vault/Attachments.base verbatim", () => {
+    // Pinned snapshot — any drift between the generator and the contract should fail loudly.
+    const contractPath = resolve(__dirname, "../../test-vault/Attachments.base");
+    const contract = readFileSync(contractPath, "utf8");
+    expect(buildBaseContent().trim()).toBe(contract.trim());
   });
 });
 
