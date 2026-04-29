@@ -147,7 +147,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
               pendingGateResolve!();
               pendingGateResolve = null;
             }
-          }, 0);
+          }, 200);
         }
       }),
     );
