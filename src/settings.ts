@@ -48,6 +48,7 @@ export class AttachmentsAutopilotSettingTab extends PluginSettingTab {
           drop.addOption(file.path, file.basename);
         }
         drop.setValue(this.plugin.settings.templatePath);
+        drop.setDisabled(!templaterEnabled);
         drop.onChange(async (value) => {
           this.plugin.settings.templatePath = value;
           await this.plugin.saveSettings();

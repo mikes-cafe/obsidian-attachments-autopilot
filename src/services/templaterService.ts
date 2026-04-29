@@ -38,21 +38,32 @@ export function buildRenderHook(
   app: App,
   templatePath: string,
 ): (twinPath: string) => Promise<string | null> {
-  return async (twinPath: string): Promise<string | null> => {
-    try {
-      const plugin = getPlugin(app);
-      if (!plugin) return null;
+  // Serialise all Templater calls: write_template_to_file touches Obsidian's
+  // active-file state internally, so concurrent invocations cause tp.file.title
+  // to resolve to the wrong file for all but the last caller. One call at a time
+  // prevents cross-contamination without slowing down non-Templater work.
+  let serial = Promise.resolve();
 
-      const templateFile = app.vault.getAbstractFileByPath(templatePath) as TFile | null;
-      if (!templateFile) return null;
+  return (twinPath: string): Promise<string | null> => {
+    const turn = serial.then(async (): Promise<string | null> => {
+      try {
+        const plugin = getPlugin(app);
+        if (!plugin) return null;
 
-      const twinFile = app.vault.getAbstractFileByPath(twinPath) as TFile | null;
-      if (!twinFile) return null;
+        const templateFile = app.vault.getAbstractFileByPath(templatePath) as TFile | null;
+        if (!templateFile) return null;
 
-      await plugin.templater.write_template_to_file(templateFile, twinFile);
-      return await app.vault.read(twinFile);
-    } catch {
-      return null;
-    }
+        const twinFile = app.vault.getAbstractFileByPath(twinPath) as TFile | null;
+        if (!twinFile) return null;
+
+        await plugin.templater.write_template_to_file(templateFile, twinFile);
+        return await app.vault.read(twinFile);
+      } catch {
+        return null;
+      }
+    });
+    // Advance the serial chain; swallow errors so one failure doesn't block the rest.
+    serial = turn.then(() => {}, () => {});
+    return turn;
   };
 }

@@ -41,24 +41,30 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
     await this.loadSettings();
     const twinVault = fromObsidianVault(this.app);
 
+    const PROGRESS_THRESHOLD = 5;
+
+    // Pre-flight decision gate: resolved when no bulk batch is pending; unresolved
+    // while waiting for the user to respond to the TemplateDecisionModal. Workers
+    // await this gate as their very first async step so no file is processed before
+    // the user has made a choice. Shared renderHook ensures one serial mutex across
+    // all workers in the same batch (prevents concurrent Templater calls).
     let templateDecision: "apply" | "skip" | null = null;
+    let decisionGate: Promise<void> = Promise.resolve();
+    let pendingGateResolve: (() => void) | null = null;
+    let bulkBatchTimer: ReturnType<typeof setTimeout> | null = null;
+    let renderHook: ((p: string) => Promise<string | null>) | undefined;
 
     this.queue = new TwinQueue(async (attachmentPath) => {
+      await decisionGate;
+
       const folder = resolveAttachmentFolder(this.app);
       const { templatePath } = this.settings;
-      const templaterActive = templatePath && isTemplaterEnabled(this.app);
+      const templaterActive = !!(templatePath && isTemplaterEnabled(this.app));
 
       let renderTemplate: ((p: string) => Promise<string | null>) | undefined;
-      if (templaterActive) {
-        const queueSize = this.queue.size();
-        if (queueSize >= PROGRESS_THRESHOLD && templateDecision === null) {
-          const modal = new TemplateDecisionModal(this.app, queueSize);
-          modal.open();
-          templateDecision = await modal.result;
-        }
-        if (templateDecision !== "skip") {
-          renderTemplate = buildRenderHook(this.app, templatePath);
-        }
+      if (templaterActive && templateDecision !== "skip") {
+        if (!renderHook) renderHook = buildRenderHook(this.app, templatePath);
+        renderTemplate = renderHook;
       }
 
       await ensureTwin(twinVault, attachmentPath, folder, { renderTemplate });
@@ -77,9 +83,6 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
 
     this.addSettingTab(new AttachmentsAutopilotSettingTab(this.app, this));
 
-    // Bulk-import progress UI: show a status-bar item while the queue churns
-    // through ≥ PROGRESS_THRESHOLD items. Single drops stay silent.
-    const PROGRESS_THRESHOLD = 5;
     const statusBar = this.addStatusBarItem();
     statusBar.setText("");
     statusBar.style.display = "none";
@@ -101,15 +104,50 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
         statusBar.style.display = "none";
         peakSize = 0;
         bulkAnnounced = false;
+        // Reset per-batch state so the next drop starts fresh.
         templateDecision = null;
+        decisionGate = Promise.resolve();
+        pendingGateResolve = null;
+        renderHook = undefined;
+        if (bulkBatchTimer !== null) {
+          clearTimeout(bulkBatchTimer);
+          bulkBatchTimer = null;
+        }
       }
     });
 
     this.registerEvent(
       this.app.vault.on("create", (file: TAbstractFile) => {
         const folder = resolveAttachmentFolder(this.app);
-        if (shouldTwin(file, folder)) {
-          this.queue.enqueue(file.path);
+        if (!shouldTwin(file, folder)) return;
+
+        const templaterActive = !!(this.settings.templatePath && isTemplaterEnabled(this.app));
+        if (templaterActive && pendingGateResolve === null) {
+          // Open a gate before the worker starts so it blocks until the batch
+          // settles and we know whether a modal is needed.
+          decisionGate = new Promise<void>((resolve) => { pendingGateResolve = resolve; });
+        }
+
+        this.queue.enqueue(file.path);
+
+        if (templaterActive) {
+          if (bulkBatchTimer !== null) clearTimeout(bulkBatchTimer);
+          bulkBatchTimer = setTimeout(() => {
+            bulkBatchTimer = null;
+            const size = this.queue.size();
+            if (size >= PROGRESS_THRESHOLD && templateDecision === null) {
+              const modal = new TemplateDecisionModal(this.app, size);
+              modal.open();
+              void modal.result.then((decision) => {
+                templateDecision = decision;
+                pendingGateResolve!();
+                pendingGateResolve = null;
+              });
+            } else {
+              pendingGateResolve!();
+              pendingGateResolve = null;
+            }
+          }, 0);
         }
       }),
     );
