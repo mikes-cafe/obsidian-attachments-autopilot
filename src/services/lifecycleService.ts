@@ -99,12 +99,31 @@ export async function renameTwin(
     }
   }
 
+  // Rename preview file FIRST so that:
+  //   (a) formatLink(newPreviewPath) below finds the file in the vault cache
+  //       and generates the user's chosen link format (bare basename) instead
+  //       of falling back to a full vault-relative path (OBS-2).
+  //   (b) if the subsequent twin rename blocks (e.g. Obsidian shows a
+  //       "Update links?" dialog), the preview is already at its correct
+  //       location, leaving attachment-prev pointing to an existing file (DEF-3).
+  if (
+    oldPreviewPath !== null &&
+    newPreviewPath !== null &&
+    oldPreviewPath !== newPreviewPath &&
+    vault.exists(oldPreviewPath)
+  ) {
+    if (!vault.exists(newPaths.previewFolder)) {
+      await vault.createFolder(newPaths.previewFolder);
+    }
+    await vault.rename(oldPreviewPath, newPreviewPath);
+  }
+
   // Rewrite the twin frontmatter (still at the old path) so that:
   //   - attachment-ref points at the new attachment path
   //   - attachment-prev points at the new preview path (if a preview exists)
-  // Doing this BEFORE renaming means the rename carries the corrected content.
-  // Links are formatted relative to the twin's *new* path so that link-format
-  // settings like `relative` resolve correctly once the rename completes.
+  // Doing this BEFORE renaming the twin means the rename carries the corrected
+  // content. Links are formatted relative to the twin's *new* path so that
+  // link-format settings like `relative` resolve correctly once the rename completes.
   if (oldContent !== null) {
     const refLink = await vault.formatLink(newAttachmentPath, newPaths.twinFile);
     let updated = setTwinRef(oldContent, refLink);
@@ -126,19 +145,6 @@ export async function renameTwin(
       await vault.createFolder(newPaths.twinFolder);
     }
     await vault.rename(oldPaths.twinFile, newPaths.twinFile);
-  }
-
-  // Rename preview file if its path actually changed (case a).
-  if (
-    oldPreviewPath !== null &&
-    newPreviewPath !== null &&
-    oldPreviewPath !== newPreviewPath &&
-    vault.exists(oldPreviewPath)
-  ) {
-    if (!vault.exists(newPaths.previewFolder)) {
-      await vault.createFolder(newPaths.previewFolder);
-    }
-    await vault.rename(oldPreviewPath, newPreviewPath);
   }
 }
 

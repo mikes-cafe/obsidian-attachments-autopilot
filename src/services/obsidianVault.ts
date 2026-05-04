@@ -43,7 +43,9 @@ export const fromObsidianVault = (app: App): TwinVault => ({
   },
 
   delete: async (path) => {
-    await app.vault.delete(requireFile(app, path));
+    const f = app.vault.getAbstractFileByPath(path);
+    if (!f) return; // already gone (e.g. deleted externally before Obsidian cache updated)
+    await app.vault.delete(f as TFile);
   },
 
   formatLink: async (targetPath, sourcePath) => {
