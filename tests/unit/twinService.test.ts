@@ -256,6 +256,16 @@ describe("ensureTwin", () => {
     expect(v.createCalls).toBe(1);
   });
 
+  it("does not call renderTemplate when twin already exists", async () => {
+    const v = new FakeVault();
+    await ensureTwin(v, "attachments/photo.png", "attachments");
+    let hookCalled = false;
+    const renderTemplate = async (_p: string) => { hookCalled = true; return "# body"; };
+    const second = await ensureTwin(v, "attachments/photo.png", "attachments", { renderTemplate });
+    expect(second).toBe("exists");
+    expect(hookCalled).toBe(false);
+  });
+
   it("does not call createFolder when the twin folder already exists", async () => {
     const v = new FakeVault();
     v.folders.add("attachments/twin");
