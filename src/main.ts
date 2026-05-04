@@ -265,22 +265,23 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
       },
     });
 
-    // Surface the Bases-disabled state once per plugin load so users without
-    // the Bases core plugin know why `Generate base file` won't work. Fires
-    // after every other registration so the Notice doesn't compete with
-    // Obsidian's own startup chatter.
-    if (!isBasesEnabled(this.app)) {
-      new Notice(t("notices.base.disabled.onload"));
-    }
-
-    const { templatePath } = this.settings;
-    if (templatePath) {
-      if (!isTemplaterEnabled(this.app)) {
-        new Notice(t("notices.templater.disabled"));
-      } else if (!this.app.vault.getAbstractFileByPath(templatePath)) {
-        new Notice(t("notices.templater.templateMissing", { path: templatePath }));
+    // Defer config-validation Notices until the workspace is fully ready so
+    // community plugins (Templater) and vault indexing are complete. Firing
+    // during onload() proper causes false positives when Obsidian is cold-starting.
+    this.app.workspace.onLayoutReady(() => {
+      if (!isBasesEnabled(this.app)) {
+        new Notice(t("notices.base.disabled.onload"), 8000);
       }
-    }
+
+      const { templatePath } = this.settings;
+      if (templatePath) {
+        if (!isTemplaterEnabled(this.app)) {
+          new Notice(t("notices.templater.disabled"), 8000);
+        } else if (!this.app.vault.getAbstractFileByPath(templatePath)) {
+          new Notice(t("notices.templater.templateMissing", { path: templatePath }), 8000);
+        }
+      }
+    });
   }
 
   onunload(): void {}
