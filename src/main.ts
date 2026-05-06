@@ -117,42 +117,6 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
     });
 
     this.registerEvent(
-      this.app.vault.on("create", (file: TAbstractFile) => {
-        const folder = resolveAttachmentFolder(this.app);
-        if (!shouldTwin(file, folder)) return;
-
-        const templaterActive = !!(this.settings.templatePath && isTemplaterEnabled(this.app));
-        if (templaterActive && pendingGateResolve === null) {
-          // Open a gate before the worker starts so it blocks until the batch
-          // settles and we know whether a modal is needed.
-          decisionGate = new Promise<void>((resolve) => { pendingGateResolve = resolve; });
-        }
-
-        this.queue.enqueue(file.path);
-
-        if (templaterActive) {
-          if (bulkBatchTimer !== null) clearTimeout(bulkBatchTimer);
-          bulkBatchTimer = setTimeout(() => {
-            bulkBatchTimer = null;
-            const size = this.queue.size();
-            if (size >= PROGRESS_THRESHOLD && templateDecision === null) {
-              const modal = new TemplateDecisionModal(this.app, size);
-              modal.open();
-              void modal.result.then((decision) => {
-                templateDecision = decision;
-                pendingGateResolve!();
-                pendingGateResolve = null;
-              });
-            } else {
-              pendingGateResolve!();
-              pendingGateResolve = null;
-            }
-          }, 200);
-        }
-      }),
-    );
-
-    this.registerEvent(
       this.app.vault.on("rename", async (file: TAbstractFile, oldPath: string) => {
         const folder = resolveAttachmentFolder(this.app);
         const action = classifyTransition(oldPath, file.path, folder);
@@ -265,10 +229,47 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
       },
     });
 
-    // Defer config-validation Notices until the workspace is fully ready so
-    // community plugins (Templater) and vault indexing are complete. Firing
-    // during onload() proper causes false positives when Obsidian is cold-starting.
+    // Defer the "create" listener and config-validation Notices until the
+    // workspace is fully ready. Obsidian fires vault.on("create") for every
+    // existing file during initial vault indexing — registering here ensures
+    // the handler only sees genuinely new files, not startup replay events.
     this.app.workspace.onLayoutReady(() => {
+      this.registerEvent(
+        this.app.vault.on("create", (file: TAbstractFile) => {
+          const folder = resolveAttachmentFolder(this.app);
+          if (!shouldTwin(file, folder)) return;
+
+          const templaterActive = !!(this.settings.templatePath && isTemplaterEnabled(this.app));
+          if (templaterActive && pendingGateResolve === null) {
+            // Open a gate before the worker starts so it blocks until the batch
+            // settles and we know whether a modal is needed.
+            decisionGate = new Promise<void>((resolve) => { pendingGateResolve = resolve; });
+          }
+
+          this.queue.enqueue(file.path);
+
+          if (templaterActive) {
+            if (bulkBatchTimer !== null) clearTimeout(bulkBatchTimer);
+            bulkBatchTimer = setTimeout(() => {
+              bulkBatchTimer = null;
+              const size = this.queue.size();
+              if (size >= PROGRESS_THRESHOLD && templateDecision === null) {
+                const modal = new TemplateDecisionModal(this.app, size);
+                modal.open();
+                void modal.result.then((decision) => {
+                  templateDecision = decision;
+                  pendingGateResolve!();
+                  pendingGateResolve = null;
+                });
+              } else {
+                pendingGateResolve!();
+                pendingGateResolve = null;
+              }
+            }, 200);
+          }
+        }),
+      );
+
       if (!isBasesEnabled(this.app)) {
         new Notice(t("notices.base.disabled.onload"), 8000);
       }
