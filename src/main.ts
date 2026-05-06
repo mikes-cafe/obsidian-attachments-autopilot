@@ -83,9 +83,6 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
 
     this.addSettingTab(new AttachmentsAutopilotSettingTab(this.app, this));
 
-    const statusBar = this.addStatusBarItem();
-    statusBar.setText("");
-    statusBar.style.display = "none";
     let batchEnqueuedCount = 0;
     let bulkAnnounced = false;
     let importBatchActive = false;
@@ -93,15 +90,11 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
     this.queue.onChange((state: QueueState) => {
       const total = state.pending + state.active;
       if (total > 0 && batchEnqueuedCount >= PROGRESS_THRESHOLD) {
-        statusBar.setText(t("statusbar.processing", { count: total }));
-        statusBar.style.display = "";
         bulkAnnounced = true;
       } else if (total === 0) {
         if (bulkAnnounced && !importBatchActive) {
           new Notice(t("notices.bulk.complete", { count: batchEnqueuedCount }));
         }
-        statusBar.setText("");
-        statusBar.style.display = "none";
         batchEnqueuedCount = 0;
         bulkAnnounced = false;
         // Reset per-batch state so the next drop starts fresh.
