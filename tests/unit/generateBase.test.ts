@@ -1,11 +1,15 @@
 import { describe, it, expect } from "vitest";
 import type { App } from "obsidian";
 import {
-  BASE_FILENAME,
   buildBaseContent,
   generateBaseFile,
   isBasesEnabled,
 } from "../../src/commands/generateBase";
+
+// Expected filename mirrors generateBaseFile's dynamic formula:
+// resolveAttachmentFolder(app) + ".base"
+const ATTACHMENT_FOLDER = "attachments";
+const BASE_FILENAME = ATTACHMENT_FOLDER + ".base";
 
 class FakeApp {
   files = new Map<string, string>();
@@ -14,6 +18,7 @@ class FakeApp {
   basesEnabled = true;
 
   vault = {
+    getConfig: (k: string) => (k === "attachmentFolderPath" ? ATTACHMENT_FOLDER : null),
     getAbstractFileByPath: (p: string) =>
       this.files.has(p) ? ({ path: p, name: p } as never) : null,
     create: async (p: string, data: string) => {

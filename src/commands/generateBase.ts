@@ -1,6 +1,5 @@
-import type { App, TFile } from "obsidian";
-
-export const BASE_FILENAME = "Attachments.base";
+import { App, TFile } from "obsidian";
+import { resolveAttachmentFolder } from "../services/pathService";
 
 /**
  * Whether Obsidian's Bases core plugin is currently enabled. The `.base` file
@@ -56,6 +55,8 @@ export async function generateBaseFile(app: App): Promise<GenerateBaseResult> {
   if (!isBasesEnabled(app)) {
     return { status: "skipped-bases-disabled", path: null };
   }
+  const BASE_FILENAME = resolveAttachmentFolder(app)+ ".base";
+
 
   const content = buildBaseContent();
   const existing = app.vault.getAbstractFileByPath(BASE_FILENAME);
