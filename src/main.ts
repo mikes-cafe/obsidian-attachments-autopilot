@@ -1,4 +1,4 @@
-import { Notice, Plugin, type TAbstractFile } from "obsidian";
+import { Notice, Plugin, TFile, type TAbstractFile } from "obsidian";
 import { AttachmentsAutopilotSettingTab } from "./settings";
 import { ensureTwin } from "./services/twinService";
 import { ensurePreview } from "./services/previewService";
@@ -118,6 +118,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
 
     this.registerEvent(
       this.app.vault.on("rename", async (file: TAbstractFile, oldPath: string) => {
+        if (!(file instanceof TFile)) return;
         const folder = resolveAttachmentFolder(this.app);
         const action = classifyTransition(oldPath, file.path, folder);
         try {
@@ -142,6 +143,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
     // tombstone so a fresh copy with the same path can be retried.
     this.registerEvent(
       this.app.vault.on("delete", async (file: TAbstractFile) => {
+        if (!(file instanceof TFile)) return;
         const folder = resolveAttachmentFolder(this.app);
         if (
           classifyTransition(file.path, null, folder) === "delete"
