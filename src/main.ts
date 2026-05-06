@@ -13,7 +13,7 @@ import {
 } from "./services/lifecycleService";
 import { findOrphanAttachments } from "./commands/generateMissingTwins";
 import { findAttachmentsWithoutPreview } from "./commands/generateMissingPreviews";
-import { runImportFromDevice } from "./commands/importFromDevice";
+import { pickFilesFromDevice, importFiles } from "./commands/importFromDevice";
 import { generateBaseFile, isBasesEnabled } from "./commands/generateBase";
 import { isTemplaterEnabled, buildRenderHook } from "./services/templaterService";
 import { TemplateDecisionModal } from "./ui/TemplateDecisionModal";
@@ -86,23 +86,23 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
     const statusBar = this.addStatusBarItem();
     statusBar.setText("");
     statusBar.style.display = "none";
-    let peakSize = 0;
+    let batchEnqueuedCount = 0;
     let bulkAnnounced = false;
+    let importBatchActive = false;
 
     this.queue.onChange((state: QueueState) => {
       const total = state.pending + state.active;
-      peakSize = Math.max(peakSize, total);
-      if (total > 0 && peakSize >= PROGRESS_THRESHOLD) {
+      if (total > 0 && batchEnqueuedCount >= PROGRESS_THRESHOLD) {
         statusBar.setText(t("statusbar.processing", { count: total }));
         statusBar.style.display = "";
         bulkAnnounced = true;
       } else if (total === 0) {
-        if (bulkAnnounced) {
-          new Notice(t("notices.bulk.complete", { count: peakSize }));
+        if (bulkAnnounced && !importBatchActive) {
+          new Notice(t("notices.bulk.complete", { count: batchEnqueuedCount }));
         }
         statusBar.setText("");
         statusBar.style.display = "none";
-        peakSize = 0;
+        batchEnqueuedCount = 0;
         bulkAnnounced = false;
         // Reset per-batch state so the next drop starts fresh.
         templateDecision = null;
@@ -197,20 +197,28 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
       id: "import-from-device",
       name: t("commands.importFromDevice.name"),
       callback: async () => {
-        const result = await runImportFromDevice(this.app);
-        if (result.imported.length === 0 && result.failed.length === 0) {
+        const files = await pickFilesFromDevice();
+        if (files.length === 0) {
           new Notice(t("notices.import.cancelled"));
           return;
         }
-        if (result.failed.length === 0) {
-          new Notice(t("notices.import.success", { count: result.imported.length }));
-        } else {
-          new Notice(
-            t("notices.import.partial", {
-              imported: result.imported.length,
-              failed: result.failed.length,
-            }),
-          );
+        importBatchActive = true;
+        try {
+          const folder = resolveAttachmentFolder(this.app);
+          const result = await importFiles(this.app, folder, files);
+          if (result.failed.length === 0) {
+            new Notice(t("notices.import.success", { count: result.imported.length }));
+          } else {
+            new Notice(
+              t("notices.import.partial", {
+                imported: result.imported.length,
+                failed: result.failed.length,
+              }),
+            );
+          }
+          await this.queue.idle();
+        } finally {
+          importBatchActive = false;
         }
       },
     });
@@ -253,6 +261,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
           }
 
           this.queue.enqueue(file.path);
+          batchEnqueuedCount++;
 
           if (templaterActive) {
             if (bulkBatchTimer !== null) clearTimeout(bulkBatchTimer);
