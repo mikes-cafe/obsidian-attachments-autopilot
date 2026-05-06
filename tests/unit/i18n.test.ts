@@ -62,10 +62,10 @@ describe("t()", () => {
 
   it("interpolates {placeholder} variables", () => {
     // Use a known key with a count placeholder; default locale is en (no localStorage in node).
-    expect(t("notices.twin.queued", { count: 3 })).toContain("3");
+    expect(t("notices.twin.created", { count: 3 })).toContain("3");
   });
 
   it("substitutes empty string for missing placeholder values", () => {
-    expect(t("notices.twin.queued")).not.toContain("{count}");
+    expect(t("notices.twin.created")).not.toContain("{count}");
   });
 });

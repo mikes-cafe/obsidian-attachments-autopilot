@@ -162,28 +162,34 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
     this.addCommand({
       id: "generate-missing-twins",
       name: t("commands.generateMissingTwins.name"),
-      callback: () => {
+      callback: async () => {
         const orphans = findOrphanAttachments(this.app, isTombstoned);
         if (orphans.length === 0) {
           new Notice(t("notices.twin.noOrphans"));
           return;
         }
         for (const path of orphans) this.queue.enqueue(path);
-        new Notice(t("notices.twin.queued", { count: orphans.length }));
+        if (orphans.length < PROGRESS_THRESHOLD) {
+          await this.queue.idle();
+          new Notice(t("notices.twin.created", { count: orphans.length }));
+        }
       },
     });
 
     this.addCommand({
       id: "generate-missing-previews",
       name: t("commands.generateMissingPreviews.name"),
-      callback: () => {
+      callback: async () => {
         const targets = findAttachmentsWithoutPreview(this.app, isTombstoned);
         if (targets.length === 0) {
           new Notice(t("notices.preview.allPresent"));
           return;
         }
         for (const path of targets) this.queue.enqueue(path);
-        new Notice(t("notices.preview.queued", { count: targets.length }));
+        if (targets.length < PROGRESS_THRESHOLD) {
+          await this.queue.idle();
+          new Notice(t("notices.preview.generated", { count: targets.length }));
+        }
       },
     });
 
