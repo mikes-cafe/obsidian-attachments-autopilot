@@ -3,7 +3,7 @@ import {
   isInsideTwinFolder,
   twinPathsFor,
 } from "./pathService";
-import { setTwinPreview, setTwinRef, type TwinVault } from "./twinService";
+import { extensionOf, setTwinPreview, setTwinRef, type TwinVault } from "./twinService";
 import { defaultGenerators } from "./previews";
 
 export type LifecycleAction = "none" | "create" | "delete" | "rename";
@@ -43,7 +43,10 @@ export function classifyTransition(
 
 const previewExtensions = (): readonly string[] => {
   const exts = new Set<string>();
-  for (const gen of Object.values(defaultGenerators)) exts.add(gen.outputExt);
+  for (const gen of Object.values(defaultGenerators)) {
+    if (gen.selfReference) continue;
+    exts.add(gen.outputExt);
+  }
   return Array.from(exts);
 };
 
@@ -88,14 +91,25 @@ export async function renameTwin(
     ? await vault.read(oldPaths.twinFile)
     : null;
 
+  // For self-reference generators (images) the "preview" is the source itself —
+  // no file lives under twin/preview/. We still set old/new preview paths to the
+  // source paths so the frontmatter rewrite below points attachment-prev at the
+  // renamed source. The preview-file rename block below naturally skips because
+  // the old source path no longer exists by the time this handler runs.
+  const sourceGen = defaultGenerators[extensionOf(oldAttachmentPath)];
   let oldPreviewPath: string | null = null;
   let newPreviewPath: string | null = null;
-  for (const ext of previewExtensions()) {
-    const candidate = oldPaths.previewFile(ext);
-    if (vault.exists(candidate)) {
-      oldPreviewPath = candidate;
-      newPreviewPath = newPaths.previewFile(ext);
-      break;
+  if (sourceGen?.selfReference) {
+    oldPreviewPath = oldAttachmentPath;
+    newPreviewPath = newAttachmentPath;
+  } else {
+    for (const ext of previewExtensions()) {
+      const candidate = oldPaths.previewFile(ext);
+      if (vault.exists(candidate)) {
+        oldPreviewPath = candidate;
+        newPreviewPath = newPaths.previewFile(ext);
+        break;
+      }
     }
   }
 

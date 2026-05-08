@@ -169,6 +169,26 @@ describe("ensurePreview", () => {
     errSpy.mockRestore();
   });
 
+  it("self-reference generator: points attachment-prev at the source and writes no preview file", async () => {
+    const v = new FakeVault();
+    v.binary.set("attachments/photo.png", buf("source"));
+    await ensureTwin(v, "attachments/photo.png", "attachments");
+    const generate = vi.fn(async () => buf("never-called"));
+    const gens = {
+      png: makeGen({ selfReference: true, outputExt: "", generate }),
+    };
+
+    const result = await ensurePreview(v, "attachments/photo.png", "attachments", gens);
+
+    expect(result).toBe("exists");
+    expect(generate).not.toHaveBeenCalled();
+    expect(v.folders.has("attachments/twin/preview")).toBe(false);
+    expect(v.binary.has("attachments/twin/preview/photo.png.png")).toBe(false);
+    expect(v.files.get("attachments/twin/photo.png.md")).toContain(
+      'attachment-prev: "[[attachments/photo.png]]"',
+    );
+  });
+
   it("isolates a failing video generator the same way", async () => {
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const v = new FakeVault();

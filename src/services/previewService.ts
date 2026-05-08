@@ -15,6 +15,15 @@ export async function ensurePreview(
   if (!gen) return "skipped";
 
   const paths = twinPathsFor(attachmentPath, attachmentFolder);
+
+  // Self-reference generators (images) use the source attachment itself as the
+  // preview — no separate file written. Just keep the twin's `attachment-prev`
+  // pointed at the source path.
+  if (gen.selfReference) {
+    await syncTwinPreview(vault, paths.twinFile, attachmentPath);
+    return "exists";
+  }
+
   const previewPath = paths.previewFile(gen.outputExt);
 
   if (vault.exists(previewPath)) {
@@ -25,7 +34,7 @@ export async function ensurePreview(
   let bytes: ArrayBuffer;
   try {
     const input = await vault.readBinary(attachmentPath);
-    bytes = await gen.generate(input, attachmentPath);
+    bytes = await gen.generate!(input, attachmentPath);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("[attachments-autopilot] preview generation failed", attachmentPath, err);

@@ -9,9 +9,11 @@ describe("defaultGenerators registry", () => {
     expect(gen.exts).toContain("pdf");
   });
 
-  it("registers an image generator for common raster formats", () => {
+  it("registers an image generator for common raster formats as self-reference", () => {
     for (const ext of ["png", "jpg", "jpeg", "webp", "gif", "bmp"]) {
-      expect(defaultGenerators[ext]).toBeDefined();
+      const gen = defaultGenerators[ext];
+      expect(gen).toBeDefined();
+      expect(gen.selfReference).toBe(true);
     }
   });
 

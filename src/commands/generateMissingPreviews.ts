@@ -33,6 +33,9 @@ export function findAttachmentsWithoutPreview(
       if (ext === "md") continue;
       const gen = defaultGenerators[ext];
       if (!gen) continue;
+      // Self-reference generators (images) use the source as their own preview;
+      // they're never "missing" — skip them.
+      if (gen.selfReference) continue;
       if (isTombstoned(child.path)) continue;
 
       const paths = twinPathsFor(child.path, folder);

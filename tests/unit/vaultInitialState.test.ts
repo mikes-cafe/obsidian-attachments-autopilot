@@ -47,10 +47,11 @@ const buildApp = (
 };
 
 // Preview path convention (from pathService + generator outputExt values):
-//   image (png/jpg/…) → twin/preview/{name}.png
+//   image (png/jpg/…) → self-reference (no preview file; source IS the preview)
 //   video (mp4/…)     → twin/preview/{name}.gif
 //   pdf               → twin/preview/{name}.png
 //   audio (mp3/…)     → twin/preview/{name}.svg
+// findAttachmentsWithoutPreview skips self-reference generators entirely.
 
 describe("vault initial state — combined orphan + missing-preview scans", () => {
   it("fully processed vault: both scans return empty", () => {
@@ -58,10 +59,10 @@ describe("vault initial state — combined orphan + missing-preview scans", () =
       mkFile("attachments/photo.png"),
       mkFile("attachments/clip.mp4"),
     ]);
+    // photo.png is self-reference (no preview file); clip.mp4 has its GIF preview.
     const existing = new Set([
       "attachments/twin/photo.png.md",
       "attachments/twin/clip.mp4.md",
-      "attachments/twin/preview/photo.png.png",
       "attachments/twin/preview/clip.mp4.gif",
     ]);
     const app = buildApp("attachments", tree, existing);
@@ -69,7 +70,7 @@ describe("vault initial state — combined orphan + missing-preview scans", () =
     expect(findAttachmentsWithoutPreview(app)).toEqual([]);
   });
 
-  it("fresh install — no twins, no previews: both scans return all attachments", () => {
+  it("fresh install — no twins, no previews: orphan scan returns both, preview scan returns only non-self-reference", () => {
     const tree = mkFolder("attachments", [
       mkFile("attachments/photo.png"),
       mkFile("attachments/clip.mp4"),
@@ -79,13 +80,11 @@ describe("vault initial state — combined orphan + missing-preview scans", () =
       "attachments/clip.mp4",
       "attachments/photo.png",
     ]);
-    expect(findAttachmentsWithoutPreview(app).sort()).toEqual([
-      "attachments/clip.mp4",
-      "attachments/photo.png",
-    ]);
+    // photo.png is self-reference; only clip.mp4 needs a generated preview.
+    expect(findAttachmentsWithoutPreview(app)).toEqual(["attachments/clip.mp4"]);
   });
 
-  it("twins present but previews missing: orphan scan empty, preview scan returns attachments", () => {
+  it("twins present but previews missing: orphan scan empty, preview scan returns only non-self-reference", () => {
     const tree = mkFolder("attachments", [
       mkFile("attachments/photo.png"),
       mkFile("attachments/clip.mp4"),
@@ -96,10 +95,7 @@ describe("vault initial state — combined orphan + missing-preview scans", () =
     ]);
     const app = buildApp("attachments", tree, existing);
     expect(findOrphanAttachments(app)).toEqual([]);
-    expect(findAttachmentsWithoutPreview(app).sort()).toEqual([
-      "attachments/clip.mp4",
-      "attachments/photo.png",
-    ]);
+    expect(findAttachmentsWithoutPreview(app)).toEqual(["attachments/clip.mp4"]);
   });
 
   it("partial processing: one file fully done, one untouched", () => {
@@ -107,11 +103,9 @@ describe("vault initial state — combined orphan + missing-preview scans", () =
       mkFile("attachments/photo.png"),
       mkFile("attachments/clip.mp4"),
     ]);
-    // photo.png is fully processed; clip.mp4 has neither twin nor preview
-    const existing = new Set([
-      "attachments/twin/photo.png.md",
-      "attachments/twin/preview/photo.png.png",
-    ]);
+    // photo.png is fully processed (twin only — self-reference, no preview file);
+    // clip.mp4 has neither twin nor preview.
+    const existing = new Set(["attachments/twin/photo.png.md"]);
     const app = buildApp("attachments", tree, existing);
     expect(findOrphanAttachments(app)).toEqual(["attachments/clip.mp4"]);
     expect(findAttachmentsWithoutPreview(app)).toEqual(["attachments/clip.mp4"]);
@@ -130,7 +124,7 @@ describe("vault initial state — combined orphan + missing-preview scans", () =
     expect(findAttachmentsWithoutPreview(app)).toEqual([]);
   });
 
-  it("mixed types (image + pdf + unsupported): preview scan excludes unsupported", () => {
+  it("mixed types (image + pdf + unsupported): preview scan excludes unsupported and self-reference", () => {
     const tree = mkFolder("attachments", [
       mkFile("attachments/photo.png"),
       mkFile("attachments/report.pdf"),
@@ -142,10 +136,9 @@ describe("vault initial state — combined orphan + missing-preview scans", () =
       "attachments/photo.png",
       "attachments/report.pdf",
     ]);
-    expect(findAttachmentsWithoutPreview(app).sort()).toEqual([
-      "attachments/photo.png",
-      "attachments/report.pdf",
-    ]);
+    // photo.png is self-reference (excluded); notes.txt is unsupported (excluded);
+    // only report.pdf needs a generated preview.
+    expect(findAttachmentsWithoutPreview(app)).toEqual(["attachments/report.pdf"]);
   });
 
   it("markdown files in attachment folder are excluded from both scans", () => {

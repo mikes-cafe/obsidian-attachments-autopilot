@@ -49,41 +49,54 @@ const buildApp = (
   } as unknown as App;
 };
 
+// NOTE: image types (png/jpg/etc.) use self-reference and are excluded from
+// the missing-preview list — the source IS the preview. Tests that need a
+// "supported type whose preview file may be missing" use mp4/mp3/pdf instead.
 describe("findAttachmentsWithoutPreview", () => {
   it("returns files of a supported type whose preview is missing", () => {
     const tree = mkFolder("attachments", [
-      mkFile("attachments/photo.png"),
       mkFile("attachments/clip.mp4"),
       mkFile("attachments/song.mp3"),
+      mkFile("attachments/report.pdf"),
     ]);
     const app = buildApp("attachments", tree);
     expect(findAttachmentsWithoutPreview(app).sort()).toEqual([
       "attachments/clip.mp4",
-      "attachments/photo.png",
+      "attachments/report.pdf",
       "attachments/song.mp3",
     ]);
   });
 
   it("skips files whose preview already exists", () => {
     const tree = mkFolder("attachments", [
-      mkFile("attachments/photo.png"),
+      mkFile("attachments/song.mp3"),
       mkFile("attachments/clip.mp4"),
     ]);
     const app = buildApp(
       "attachments",
       tree,
-      new Set(["attachments/twin/preview/photo.png.png"]),
+      new Set(["attachments/twin/preview/song.mp3.svg"]),
     );
     expect(findAttachmentsWithoutPreview(app)).toEqual(["attachments/clip.mp4"]);
   });
 
   it("skips files of unsupported types (no generator)", () => {
     const tree = mkFolder("attachments", [
-      mkFile("attachments/photo.png"),
+      mkFile("attachments/song.mp3"),
       mkFile("attachments/data.bin"),
     ]);
     const app = buildApp("attachments", tree);
-    expect(findAttachmentsWithoutPreview(app)).toEqual(["attachments/photo.png"]);
+    expect(findAttachmentsWithoutPreview(app)).toEqual(["attachments/song.mp3"]);
+  });
+
+  it("skips self-reference image types (source IS the preview)", () => {
+    const tree = mkFolder("attachments", [
+      mkFile("attachments/photo.png"),
+      mkFile("attachments/picture.jpg"),
+      mkFile("attachments/clip.mp4"),
+    ]);
+    const app = buildApp("attachments", tree);
+    expect(findAttachmentsWithoutPreview(app)).toEqual(["attachments/clip.mp4"]);
   });
 
   it("does not descend into the twin/ subtree", () => {
@@ -91,28 +104,28 @@ describe("findAttachmentsWithoutPreview", () => {
       mkFile("attachments/twin/old.md"),
       mkFolder("attachments/twin/preview", [mkFile("attachments/twin/preview/stale.png")]),
     ]);
-    const tree = mkFolder("attachments", [mkFile("attachments/photo.png"), twinSub]);
+    const tree = mkFolder("attachments", [mkFile("attachments/song.mp3"), twinSub]);
     const app = buildApp("attachments", tree);
-    expect(findAttachmentsWithoutPreview(app)).toEqual(["attachments/photo.png"]);
+    expect(findAttachmentsWithoutPreview(app)).toEqual(["attachments/song.mp3"]);
   });
 
   it("excludes tombstoned paths from the missing-preview list", () => {
     const tree = mkFolder("attachments", [
-      mkFile("attachments/photo.png"),
+      mkFile("attachments/song.mp3"),
       mkFile("attachments/clip.mp4"),
     ]);
     const app = buildApp("attachments", tree);
     const isTombstoned = (path: string) => path === "attachments/clip.mp4";
-    expect(findAttachmentsWithoutPreview(app, isTombstoned)).toEqual(["attachments/photo.png"]);
+    expect(findAttachmentsWithoutPreview(app, isTombstoned)).toEqual(["attachments/song.mp3"]);
   });
 
   it("walks subfolders inside the attachment folder", () => {
-    const sub = mkFolder("attachments/sub", [mkFile("attachments/sub/deep.png")]);
-    const tree = mkFolder("attachments", [mkFile("attachments/photo.png"), sub]);
+    const sub = mkFolder("attachments/sub", [mkFile("attachments/sub/deep.mp4")]);
+    const tree = mkFolder("attachments", [mkFile("attachments/song.mp3"), sub]);
     const app = buildApp("attachments", tree);
     expect(findAttachmentsWithoutPreview(app).sort()).toEqual([
-      "attachments/photo.png",
-      "attachments/sub/deep.png",
+      "attachments/song.mp3",
+      "attachments/sub/deep.mp4",
     ]);
   });
 });
