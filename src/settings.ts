@@ -76,7 +76,6 @@ export class AttachmentsAutopilotSettingTab extends PluginSettingTab {
       cls: "internal-link",
       href: "#",
     });
-    anchor.style.cursor = "pointer";
     anchor.addEventListener("click", (evt) => {
       evt.preventDefault();
       const setting = (this.app as unknown as {
