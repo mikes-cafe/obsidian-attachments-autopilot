@@ -1,9 +1,9 @@
 {
   "id": "attachments-autopilot",
   "name": "Attachments Autopilot",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "minAppVersion": "1.6.0",
   "description": "Automatically creates queryable twin markdown notes for non-markdown attachments (images, PDFs, video, audio) so they show up in Obsidian Bases.",
-  "author": "Miguel Baquero",
+  "author": "mikes-cafe",
   "isDesktopOnly": false
 }
