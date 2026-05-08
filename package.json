@@ -1,6 +1,6 @@
 {
   "name": "attachments-autopilot",
-  "version": "0.5.2",
+  "version": "0.6.2",
   "description": "Obsidian plugin: queryable twin markdown notes for non-markdown attachments.",
   "main": "main.js",
   "scripts": {
@@ -17,8 +17,16 @@
     "bases",
     "twin"
   ],
-  "author": "Miguel Baquero",
+  "author": "mikes-cafe",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mikes-cafe/obsidian-attachments-autopilot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mikes-cafe/obsidian-attachments-autopilot/issues"
+  },
+  "homepage": "https://github.com/mikes-cafe/obsidian-attachments-autopilot#readme",
   "dependencies": {
     "gifenc": "^1.0.3",
     "pdfjs-dist": "^4.10.38"

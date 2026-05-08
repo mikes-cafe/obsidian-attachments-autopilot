@@ -3,10 +3,13 @@ dist/
 main.js
 *.log
 .DS_Store
-*.md
 
 # Local-only — do not push
 test-vault/
 test-fixtures/
 scripts/
 qa_e2e_plan.md
+attachment-autopilot.md
+QA_RESULTS.md
+QA_RESULTS_FINAL.md
+FINAL_QA_REPORT.txt
