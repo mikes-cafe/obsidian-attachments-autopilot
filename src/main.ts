@@ -4,7 +4,7 @@ import { ensureTwin } from "./services/twinService";
 import { ensurePreview } from "./services/previewService";
 import { TwinQueue, type QueueState } from "./services/twinQueue";
 import { fromObsidianVault } from "./services/obsidianVault";
-import { resolveAttachmentFolder } from "./services/pathService";
+import { attachmentFolderMode, resolveAttachmentFolder } from "./services/pathService";
 import { shouldTwin } from "./events/vaultWatcher";
 import {
   classifyTransition,
@@ -282,6 +282,14 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
 
       if (!isBasesEnabled(this.app)) {
         new Notice(t("notices.base.disabled.onload"), 8000);
+      }
+
+      // Relative attachment-folder modes ("Same folder as current file" /
+      // "In subfolder under the current folder") are funnelled through
+      // vault-root mode internally — surface that explicitly so the user
+      // knows where their twins are landing.
+      if (attachmentFolderMode(this.app) === "relative") {
+        new Notice(t("notices.attachmentFolder.relativeFallback"), 8000);
       }
 
       const { templatePath } = this.settings;

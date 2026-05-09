@@ -16,6 +16,8 @@
   "notices.import.cancelled": "No se seleccionaron archivos",
   "notices.base.created": "Se creó {path}",
   "notices.base.updated": "Se actualizó {path}",
+  "base.defaultBasename": "adjuntos",
+  "notices.attachmentFolder.relativeFallback": "Attachments Autopilot: tu 'Ubicación predeterminada para adjuntos nuevos' está configurada por nota. Los gemelos se centralizarán en `twin/` en la raíz de la bóveda.",
   "notices.base.disabled.onload": "Attachments Autopilot: el plugin principal Bases está desactivado — Generar archivo base no funcionará hasta que lo actives en Ajustes → Plugins principales → Bases.",
   "notices.base.disabled.command": "El plugin principal Bases está desactivado. Actívalo en Ajustes → Plugins principales → Bases para generar el archivo base.",
 "notices.bulk.complete": "Se importaron {count} adjunto(s)",

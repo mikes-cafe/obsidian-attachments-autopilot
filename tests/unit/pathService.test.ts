@@ -4,6 +4,7 @@ import {
   isInsideTwinFolder,
   isInsideAttachmentFolder,
   resolveAttachmentFolder,
+  attachmentFolderMode,
   sanitizeBasename,
 } from "../../src/services/pathService";
 
@@ -181,5 +182,58 @@ describe("resolveAttachmentFolder", () => {
       expect(isInsideAttachmentFolder("My Attachments/photo.png", folder)).toBe(true);
       expect(isInsideAttachmentFolder("OtherFolder/photo.png", folder)).toBe(false);
     });
+  });
+});
+
+// Classifies the four UI modes of `attachmentFolderPath`. The plugin uses this
+// to (a) surface a one-shot Notice when the user is in `relative` mode and (b)
+// funnel `relative` through `resolveAttachmentFolder = ""` so the rest of the
+// codebase sees a single "vault root" world for all non-specific configs.
+describe("attachmentFolderMode", () => {
+  const mkApp = (cfg: unknown) =>
+    ({ vault: { getConfig: (k: string) => (k === "attachmentFolderPath" ? cfg : null) } }) as never;
+
+  it("returns 'root' for empty / slash / missing config", () => {
+    expect(attachmentFolderMode(mkApp(""))).toBe("root");
+    expect(attachmentFolderMode(mkApp("/"))).toBe("root");
+    expect(attachmentFolderMode(mkApp("   "))).toBe("root");
+    expect(attachmentFolderMode(mkApp(undefined))).toBe("root");
+    expect(attachmentFolderMode(mkApp(null))).toBe("root");
+    expect(attachmentFolderMode(mkApp(123))).toBe("root");
+    expect(attachmentFolderMode({ vault: {} } as never)).toBe("root");
+  });
+
+  it("returns 'specific' for absolute folder paths", () => {
+    expect(attachmentFolderMode(mkApp("attachments"))).toBe("specific");
+    expect(attachmentFolderMode(mkApp("notes/files"))).toBe("specific");
+    expect(attachmentFolderMode(mkApp("/attachments/"))).toBe("specific");
+    expect(attachmentFolderMode(mkApp("My Attachments"))).toBe("specific");
+    expect(attachmentFolderMode(mkApp("附件"))).toBe("specific");
+  });
+
+  it("returns 'relative' for Obsidian's per-note modes", () => {
+    expect(attachmentFolderMode(mkApp("."))).toBe("relative");
+    expect(attachmentFolderMode(mkApp("./"))).toBe("relative");
+    expect(attachmentFolderMode(mkApp("./_attachments"))).toBe("relative");
+    expect(attachmentFolderMode(mkApp("./media/files"))).toBe("relative");
+    expect(attachmentFolderMode(mkApp("../up"))).toBe("relative");
+  });
+});
+
+// Regression: relative configs (Obsidian's "Same folder as current file" /
+// "In subfolder under the current folder") must funnel through `""` so the
+// watcher / lifecycle / twinPathsFor code paths use vault-root semantics.
+// Before this fix, `resolveAttachmentFolder("./")` returned `"./"` literal,
+// which broke `isInsideAttachmentFolder` and silently no-op'd the plugin.
+describe("resolveAttachmentFolder — relative-mode fallback", () => {
+  const mkApp = (cfg: unknown) =>
+    ({ vault: { getConfig: (k: string) => (k === "attachmentFolderPath" ? cfg : null) } }) as never;
+
+  it("funnels relative configs to empty string (vault root)", () => {
+    expect(resolveAttachmentFolder(mkApp("."))).toBe("");
+    expect(resolveAttachmentFolder(mkApp("./"))).toBe("");
+    expect(resolveAttachmentFolder(mkApp("./_attachments"))).toBe("");
+    expect(resolveAttachmentFolder(mkApp("./media/files"))).toBe("");
+    expect(resolveAttachmentFolder(mkApp("../up"))).toBe("");
   });
 });

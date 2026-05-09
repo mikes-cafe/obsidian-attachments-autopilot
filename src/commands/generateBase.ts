@@ -1,5 +1,6 @@
 import { App, TFile } from "obsidian";
 import { resolveAttachmentFolder } from "../services/pathService";
+import { t } from "../i18n";
 
 /**
  * Whether Obsidian's Bases core plugin is currently enabled. The `.base` file
@@ -55,8 +56,15 @@ export async function generateBaseFile(app: App): Promise<GenerateBaseResult> {
   if (!isBasesEnabled(app)) {
     return { status: "skipped-bases-disabled", path: null };
   }
-  const BASE_FILENAME = resolveAttachmentFolder(app)+ ".base";
-
+  // Always write `<basename>.base` at vault root. For mode-1 nested folders
+  // (e.g. `notes/files`) we use the last path segment (`files`) so the file
+  // doesn't end up buried. For modes 2/3/4 (resolveAttachmentFolder returns
+  // `""`) we use a localized default basename.
+  const folder = resolveAttachmentFolder(app);
+  const basename = folder === ""
+    ? t("base.defaultBasename")
+    : (folder.split("/").pop() as string);
+  const BASE_FILENAME = `${basename}.base`;
 
   const content = buildBaseContent();
   const existing = app.vault.getAbstractFileByPath(BASE_FILENAME);

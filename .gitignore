@@ -6,10 +6,20 @@ main.js
 
 # Local-only — do not push
 test-vault/
+test-vault-old/
 test-fixtures/
 scripts/
 qa_e2e_plan.md
 attachment-autopilot.md
-QA_RESULTS.md
-QA_RESULTS_FINAL.md
+
+# Local QA artifacts (any markdown / txt report at the repo root)
+QA_*.md
+QA_*.txt
+*_QA_REPORT.md
+*_QA_REPORT.txt
 FINAL_QA_REPORT.txt
+
+# Local test runner / setup scripts (live alongside test-vault)
+setup-vault.sh
+run_qa_tests.sh
+test_*.sh

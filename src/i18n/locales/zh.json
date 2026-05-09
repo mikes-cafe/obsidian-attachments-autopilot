@@ -16,6 +16,8 @@
   "notices.import.cancelled": "未选择文件",
   "notices.base.created": "已创建 {path}",
   "notices.base.updated": "已更新 {path}",
+  "base.defaultBasename": "附件",
+  "notices.attachmentFolder.relativeFallback": "Attachments Autopilot：你的“新附件的默认位置”按笔记配置。孪生笔记将集中存放在仓库根目录的 `twin/` 文件夹下。",
   "notices.base.disabled.onload": "Attachments Autopilot:核心插件 Bases 已禁用 — 在“设置 → 核心插件 → Bases”中启用之前,“生成包含孪生笔记的 Base 文件”将无法使用。",
   "notices.base.disabled.command": "核心插件 Bases 已禁用。请在“设置 → 核心插件 → Bases”中启用以生成 Base 文件。",
 "notices.bulk.complete": "已导入 {count} 个附件",

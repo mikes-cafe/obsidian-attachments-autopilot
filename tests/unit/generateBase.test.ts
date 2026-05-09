@@ -16,9 +16,10 @@ class FakeApp {
   createCalls = 0;
   modifyCalls = 0;
   basesEnabled = true;
+  attachmentFolderPath: string = ATTACHMENT_FOLDER;
 
   vault = {
-    getConfig: (k: string) => (k === "attachmentFolderPath" ? ATTACHMENT_FOLDER : null),
+    getConfig: (k: string) => (k === "attachmentFolderPath" ? this.attachmentFolderPath : null),
     getAbstractFileByPath: (p: string) =>
       this.files.has(p) ? ({ path: p, name: p } as never) : null,
     create: async (p: string, data: string) => {
@@ -172,5 +173,43 @@ describe("generateBaseFile", () => {
     expect(result.status).toBe("skipped-bases-disabled");
     expect(app.modifyCalls).toBe(0);
     expect(app.files.get(BASE_FILENAME)).toBe("user-edited content");
+  });
+
+  // §13.1 of the QA plan — base file always lives at vault root with the
+  // attachment folder's basename, regardless of nesting. For non-specific
+  // attachment-folder modes (vault root, "same folder as note", "subfolder
+  // under current folder") we use the localized default basename.
+
+  it("vault-root mode (empty config) writes localized default basename at vault root", async () => {
+    const app = new FakeApp();
+    app.attachmentFolderPath = "";
+    const result = await generateBaseFile(app.asApp());
+    expect(result.status).toBe("created");
+    // i18n falls back to en in the test runtime — t("base.defaultBasename") = "attachments"
+    expect(result.path).toBe("attachments.base");
+    expect(app.files.has("attachments.base")).toBe(true);
+    expect(app.files.has(".base")).toBe(false);
+  });
+
+  it("relative-mode config ('./' / './_attachments') is treated as vault root", async () => {
+    const app = new FakeApp();
+    app.attachmentFolderPath = "./_attachments";
+    const result = await generateBaseFile(app.asApp());
+    expect(result.status).toBe("created");
+    expect(result.path).toBe("attachments.base");
+    expect(app.files.has("attachments.base")).toBe(true);
+    expect(app.files.has("_attachments.base")).toBe(false);
+    expect(app.files.has("./_attachments.base")).toBe(false);
+  });
+
+  it("nested attachment folder writes <basename>.base at vault root, not nested", async () => {
+    const app = new FakeApp();
+    app.attachmentFolderPath = "notes/files";
+    const result = await generateBaseFile(app.asApp());
+    expect(result.status).toBe("created");
+    expect(result.path).toBe("files.base");
+    expect(app.files.has("files.base")).toBe(true);
+    expect(app.files.has("notes/files.base")).toBe(false);
+    expect(app.files.has("notes/files/files.base")).toBe(false);
   });
 });

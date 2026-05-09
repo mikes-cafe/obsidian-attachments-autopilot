@@ -23,7 +23,48 @@ export function sanitizeBasename(name: string): string {
   return name.replace(INVALID_BASENAME_CHARS, "_");
 }
 
+export type AttachmentFolderMode = "specific" | "root" | "relative";
+
+/**
+ * Classify Obsidian's `attachmentFolderPath` setting into the four UI modes:
+ *  - `specific` — a fixed path like `attachments` or `notes/files`
+ *  - `root` — vault root (`""` or `"/"`)
+ *  - `relative` — per-note folder (`./` or `./<sub>` from Obsidian's
+ *    "Same folder as current file" / "In subfolder under the current folder"
+ *    options).
+ *
+ * Used by main.ts to surface a one-shot Notice when the user is in `relative`
+ * mode (we treat it as `root` internally — see `resolveAttachmentFolder`).
+ */
+export function attachmentFolderMode(app: App): AttachmentFolderMode {
+  const raw = (app.vault as unknown as { getConfig?: (k: string) => unknown }).getConfig?.(
+    "attachmentFolderPath",
+  );
+  if (typeof raw !== "string") return "root";
+  const trimmed = raw.trim();
+  if (trimmed === "" || trimmed === "/") return "root";
+  if (
+    trimmed === "." ||
+    trimmed === "./" ||
+    trimmed.startsWith("./") ||
+    trimmed.startsWith("../")
+  ) {
+    return "relative";
+  }
+  return "specific";
+}
+
+/**
+ * Resolved attachment folder path, normalized for the rest of the codebase.
+ *
+ * Returns the configured folder for `specific` mode; returns `""` (vault root)
+ * for both `root` and `relative` modes. The downstream watcher / lifecycle /
+ * twinPathsFor code already handles `""` correctly — by funnelling relative
+ * modes through `""` here, we get consistent vault-root behaviour for all
+ * non-specific configurations instead of silently no-oping on relative paths.
+ */
 export function resolveAttachmentFolder(app: App): string {
+  if (attachmentFolderMode(app) !== "specific") return "";
   const cfg = (app.vault as unknown as { getConfig?: (k: string) => unknown }).getConfig?.(
     "attachmentFolderPath",
   );

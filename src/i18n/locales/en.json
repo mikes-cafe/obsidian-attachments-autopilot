@@ -16,6 +16,8 @@
   "notices.import.cancelled": "No files selected",
   "notices.base.created": "Created {path}",
   "notices.base.updated": "Updated {path}",
+  "base.defaultBasename": "attachments",
+  "notices.attachmentFolder.relativeFallback": "Attachments Autopilot: your 'Default location for new attachments' is set to a per-note folder. Twins will be centralized under `twin/` at the vault root.",
   "notices.base.disabled.onload": "Attachments Autopilot: Bases core plugin is disabled — Generate base file will not work until you enable it under Settings → Core plugins → Bases.",
   "notices.base.disabled.command": "Bases core plugin is disabled. Enable it under Settings → Core plugins → Bases to generate the base file.",
 "notices.bulk.complete": "Imported {count} attachment(s)",
