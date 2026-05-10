@@ -87,6 +87,38 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
     let bulkAnnounced = false;
     let importBatchActive = false;
 
+    // Gate / modal helpers — driven by the bulk-source callers (commands or
+    // the create-handler debounce). Workers in the queue block on
+    // `decisionGate` as their first async step; these helpers open / resolve
+    // it and (optionally) show the modal.
+    const openDecisionGate = (): void => {
+      if (pendingGateResolve === null) {
+        decisionGate = new Promise<void>((resolve) => {
+          pendingGateResolve = resolve;
+        });
+      }
+    };
+    const resolveDecisionGate = (): void => {
+      if (pendingGateResolve !== null) {
+        pendingGateResolve();
+        pendingGateResolve = null;
+      }
+    };
+    const decideTemplateAction = async (count: number): Promise<void> => {
+      if (templateDecision !== null) {
+        resolveDecisionGate();
+        return;
+      }
+      if (count < PROGRESS_THRESHOLD) {
+        resolveDecisionGate();
+        return;
+      }
+      const modal = new TemplateDecisionModal(this.app, count);
+      modal.open();
+      templateDecision = await modal.result;
+      resolveDecisionGate();
+    };
+
     this.queue.onChange((state: QueueState) => {
       const total = state.pending + state.active;
       if (total > 0 && batchEnqueuedCount >= PROGRESS_THRESHOLD) {
@@ -163,11 +195,18 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
           new Notice(t("notices.twin.noOrphans"));
           return;
         }
+        const templaterActive = !!(this.settings.templatePath && isTemplaterEnabled(this.app));
+        // Drive the gate + modal explicitly: workers will block on the gate
+        // until decideTemplateAction either opens the modal (≥5 orphans)
+        // or resolves silently (<5).
+        if (templaterActive) openDecisionGate();
         for (const path of orphans) this.queue.enqueue(path);
+        if (templaterActive) await decideTemplateAction(orphans.length);
         if (orphans.length < PROGRESS_THRESHOLD) {
           await this.queue.idle();
           new Notice(t("notices.twin.created", { count: orphans.length }));
         }
+        // Large batches (≥5) get the bulk-completion notice from queue.onChange.
       },
     });
 
@@ -198,9 +237,18 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
           return;
         }
         importBatchActive = true;
+        const templaterActive = !!(this.settings.templatePath && isTemplaterEnabled(this.app));
         try {
+          // Open the gate BEFORE importFiles so any per-file create event
+          // (which sees `importBatchActive === true` and skips its own
+          // gate setup) finds workers blocking on a real pending gate.
+          if (templaterActive) openDecisionGate();
           const folder = resolveAttachmentFolder(this.app);
           const result = await importFiles(this.app, folder, files);
+          // Once imports are done we know exactly how many files entered
+          // the queue — pick modal-or-silent based on that count, not on
+          // the racy queue.size() snapshot.
+          if (templaterActive) await decideTemplateAction(result.imported.length);
           if (result.failed.length === 0) {
             new Notice(t("notices.import.success", { count: result.imported.length }));
           } else {
@@ -248,35 +296,26 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
           const folder = resolveAttachmentFolder(this.app);
           if (!shouldTwin(file, folder)) return;
 
-          const templaterActive = !!(this.settings.templatePath && isTemplaterEnabled(this.app));
-          if (templaterActive && pendingGateResolve === null) {
-            // Open a gate before the worker starts so it blocks until the batch
-            // settles and we know whether a modal is needed.
-            decisionGate = new Promise<void>((resolve) => { pendingGateResolve = resolve; });
-          }
-
           this.queue.enqueue(file.path);
           batchEnqueuedCount++;
 
-          if (templaterActive) {
-            if (bulkBatchTimer !== null) clearTimeout(bulkBatchTimer);
-            bulkBatchTimer = setTimeout(() => {
-              bulkBatchTimer = null;
-              const size = this.queue.size();
-              if (size >= PROGRESS_THRESHOLD && templateDecision === null) {
-                const modal = new TemplateDecisionModal(this.app, size);
-                modal.open();
-                void modal.result.then((decision) => {
-                  templateDecision = decision;
-                  pendingGateResolve!();
-                  pendingGateResolve = null;
-                });
-              } else {
-                pendingGateResolve!();
-                pendingGateResolve = null;
-              }
-            }, 200);
-          }
+          // When a command (e.g. import-from-device) is driving the batch,
+          // it owns the gate + modal lifecycle — don't interfere here.
+          if (importBatchActive) return;
+
+          const templaterActive = !!(this.settings.templatePath && isTemplaterEnabled(this.app));
+          if (!templaterActive) return;
+
+          // Drag-and-drop path: open the gate eagerly, then debounce a
+          // modal-or-silent decision off the last create event. Threshold
+          // check uses batchEnqueuedCount (monotonic during the batch),
+          // not queue.size() (drains as workers consume — racy).
+          openDecisionGate();
+          if (bulkBatchTimer !== null) clearTimeout(bulkBatchTimer);
+          bulkBatchTimer = setTimeout(() => {
+            bulkBatchTimer = null;
+            void decideTemplateAction(batchEnqueuedCount);
+          }, 200);
         }),
       );
 

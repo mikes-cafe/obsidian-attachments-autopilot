@@ -33,5 +33,10 @@ export class TemplateDecisionModal extends Modal {
 
   onClose(): void {
     this.contentEl.empty();
+    // Defensive default: if the user dismissed the modal without tapping
+    // Apply/Skip (Escape, tap-outside, hardware back), resolve with "skip"
+    // so the queue's gate doesn't hang forever. Promise resolution is
+    // idempotent — this is a no-op if Apply/Skip already fired the resolve.
+    this.resolve("skip");
   }
 }
