@@ -1,6 +1,6 @@
 {
   "name": "attachments-autopilot",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "Obsidian plugin: queryable twin markdown notes for non-markdown attachments.",
   "main": "main.js",
   "scripts": {
