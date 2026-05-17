@@ -17,7 +17,7 @@
   "notices.base.created": "Se creó {path}",
   "notices.base.updated": "Se actualizó {path}",
   "base.defaultBasename": "adjuntos",
-  "notices.attachmentFolder.relativeFallback": "Attachments Autopilot: tu 'Ubicación predeterminada para adjuntos nuevos' está configurada por nota. Los gemelos se centralizarán en `twin/` en la raíz de la bóveda.",
+  "notices.attachmentFolder.relativeFallback": "Attachments Autopilot: tu 'Ubicación predeterminada para adjuntos nuevos' está configurada por nota. Los gemelos se centralizarán en `files-twins/` en la raíz de la bóveda.",
   "notices.base.disabled.onload": "Attachments Autopilot: el plugin principal Bases está desactivado — Generar archivo base no funcionará hasta que lo actives en Ajustes → Plugins principales → Bases.",
   "notices.base.disabled.command": "El plugin principal Bases está desactivado. Actívalo en Ajustes → Plugins principales → Bases para generar el archivo base.",
 "notices.bulk.complete": "Se importaron {count} adjunto(s)",
@@ -31,5 +31,6 @@
   "modal.templateDecision.title": "¿Aplicar plantilla a los gemelos?",
   "modal.templateDecision.body": "Estás importando {count} adjuntos. ¿Aplicar la plantilla de Templater configurada a todos los gemelos?",
   "modal.templateDecision.apply": "Aplicar a todos",
-  "modal.templateDecision.skip": "Omitir en este lote"
+  "modal.templateDecision.skip": "Omitir en este lote",
+  "notices.migration.twinFolderRenamed": "Attachments Autopilot: carpeta de gemelos renombrada a {newFolder} ({count} archivo(s) migrado(s))"
 }

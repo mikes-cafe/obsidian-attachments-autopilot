@@ -17,7 +17,7 @@
   "notices.base.created": "{path} erstellt",
   "notices.base.updated": "{path} aktualisiert",
   "base.defaultBasename": "Anhänge",
-  "notices.attachmentFolder.relativeFallback": "Attachments Autopilot: 'Standardspeicherort für neue Anhänge' ist je-Note. Twins werden zentral unter `twin/` im Tresor-Wurzel angelegt.",
+  "notices.attachmentFolder.relativeFallback": "Attachments Autopilot: 'Standardspeicherort für neue Anhänge' ist je-Note. Twins werden zentral unter `files-twins/` im Tresor-Wurzel angelegt.",
   "notices.base.disabled.onload": "Attachments Autopilot: Das Bases-Kernplugin ist deaktiviert — Base-Datei erzeugen funktioniert erst, wenn du es unter Einstellungen → Kern-Plugins → Bases aktivierst.",
   "notices.base.disabled.command": "Das Bases-Kernplugin ist deaktiviert. Aktiviere es unter Einstellungen → Kern-Plugins → Bases, um die Base-Datei zu erzeugen.",
 "notices.bulk.complete": "{count} Anhang/Anhänge importiert",
@@ -31,5 +31,6 @@
   "modal.templateDecision.title": "Vorlage auf Twins anwenden?",
   "modal.templateDecision.body": "Du importierst {count} Anhänge. Die konfigurierte Templater-Vorlage auf alle Twins anwenden?",
   "modal.templateDecision.apply": "Auf alle anwenden",
-  "modal.templateDecision.skip": "Für diesen Stapel überspringen"
+  "modal.templateDecision.skip": "Für diesen Stapel überspringen",
+  "notices.migration.twinFolderRenamed": "Attachments Autopilot: Twins-Ordner umbenannt zu {newFolder} ({count} Datei(en) migriert)"
 }

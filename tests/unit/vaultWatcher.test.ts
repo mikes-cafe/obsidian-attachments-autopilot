@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { shouldTwin } from "../../src/events/vaultWatcher";
 import type { TAbstractFile, TFile, TFolder } from "obsidian";
+import { twinFile, previewFile } from "./testHelpers";
 
 const file = (path: string): TFile => {
   const name = path.split("/").pop() ?? "";
@@ -25,8 +26,8 @@ describe("shouldTwin", () => {
   });
 
   it("rejects files inside the twin folder (and its preview subfolder)", () => {
-    expect(shouldTwin(file("attachments/twin/photo.md"), "attachments")).toBe(false);
-    expect(shouldTwin(file("attachments/twin/preview/photo.png"), "attachments")).toBe(false);
+    expect(shouldTwin(file(twinFile("attachments", "photo.md")), "attachments")).toBe(false);
+    expect(shouldTwin(file(previewFile("attachments", "photo.png")), "attachments")).toBe(false);
   });
 
   it("rejects files outside the configured attachment folder", () => {
@@ -39,8 +40,8 @@ describe("shouldTwin", () => {
     );
   });
 
-  it("with vault-root attachment folder, accepts non-md files outside twin/", () => {
+  it("with vault-root attachment folder, accepts non-md files outside the twin folder", () => {
     expect(shouldTwin(file("photo.png"), "")).toBe(true);
-    expect(shouldTwin(file("twin/photo.md"), "")).toBe(false);
+    expect(shouldTwin(file(twinFile("", "photo.md")), "")).toBe(false);
   });
 });

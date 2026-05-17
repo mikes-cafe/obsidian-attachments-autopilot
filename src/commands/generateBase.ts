@@ -48,7 +48,10 @@ export interface GenerateBaseResult {
   path: string | null;
 }
 
-export async function generateBaseFile(app: App): Promise<GenerateBaseResult> {
+export async function generateBaseFile(
+  app: App,
+  previousBasePath = "",
+): Promise<GenerateBaseResult> {
   // Refuse to write a `.base` file when Bases isn't running. Without Bases,
   // the file would just sit in the vault as plain YAML — confusing, and easy
   // to mistake for a plugin failure. Caller (main.ts) emits a user-facing
@@ -65,6 +68,24 @@ export async function generateBaseFile(app: App): Promise<GenerateBaseResult> {
     ? t("base.defaultBasename")
     : (folder.split("/").pop() as string);
   const BASE_FILENAME = `${basename}.base`;
+
+  // Rename the old .base file when the attachment folder has changed.
+  // Using raw vault.rename (not fileManager) since .base files have no wikilink backlinks.
+  if (previousBasePath !== "" && previousBasePath !== BASE_FILENAME) {
+    const oldFile = app.vault.getAbstractFileByPath(previousBasePath);
+    if (oldFile) {
+      await app.vault.rename(oldFile as TFile, BASE_FILENAME);
+    }
+  } else if (previousBasePath === "") {
+    // Legacy/first run — scan for a single orphan .base at vault root.
+    const orphans = (app.vault as unknown as { getFiles?(): TFile[] })
+      .getFiles?.()
+      ?.filter(f => f.extension === "base" && f.path !== BASE_FILENAME) ?? [];
+    if (orphans.length === 1) {
+      await app.vault.rename(orphans[0], BASE_FILENAME);
+    }
+    // Multiple orphans → skip auto-rename; user must clean up manually.
+  }
 
   const content = buildBaseContent();
   const existing = app.vault.getAbstractFileByPath(BASE_FILENAME);

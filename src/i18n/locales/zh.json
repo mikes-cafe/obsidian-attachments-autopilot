@@ -17,7 +17,7 @@
   "notices.base.created": "已创建 {path}",
   "notices.base.updated": "已更新 {path}",
   "base.defaultBasename": "附件",
-  "notices.attachmentFolder.relativeFallback": "Attachments Autopilot：你的“新附件的默认位置”按笔记配置。孪生笔记将集中存放在仓库根目录的 `twin/` 文件夹下。",
+  "notices.attachmentFolder.relativeFallback": "Attachments Autopilot：你的”新附件的默认位置”按笔记配置。孪生笔记将集中存放在仓库根目录的 `files-twins/` 文件夹下。",
   "notices.base.disabled.onload": "Attachments Autopilot:核心插件 Bases 已禁用 — 在“设置 → 核心插件 → Bases”中启用之前,“生成包含孪生笔记的 Base 文件”将无法使用。",
   "notices.base.disabled.command": "核心插件 Bases 已禁用。请在“设置 → 核心插件 → Bases”中启用以生成 Base 文件。",
 "notices.bulk.complete": "已导入 {count} 个附件",
@@ -31,5 +31,6 @@
   "modal.templateDecision.title": "是否将模板应用于孪生笔记？",
   "modal.templateDecision.body": "您正在导入 {count} 个附件。是否将已配置的 Templater 模板应用于所有孪生笔记？",
   "modal.templateDecision.apply": "全部应用",
-  "modal.templateDecision.skip": "本次跳过"
+  "modal.templateDecision.skip": "本次跳过",
+  "notices.migration.twinFolderRenamed": "Attachments Autopilot：孪生笔记文件夹已重命名为 {newFolder}（已迁移 {count} 个文件）"
 }

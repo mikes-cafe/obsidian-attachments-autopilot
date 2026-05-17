@@ -1,4 +1,4 @@
-import { Notice, Plugin, TFile, type TAbstractFile } from "obsidian";
+import { Notice, Plugin, TFile, TFolder, type TAbstractFile } from "obsidian";
 import { AttachmentsAutopilotSettingTab } from "./settings";
 import { ensureTwin } from "./services/twinService";
 import { ensurePreview } from "./services/previewService";
@@ -21,9 +21,15 @@ import { t } from "./i18n";
 
 interface PluginSettings {
   templatePath: string;
+  migratedTwinFolder: boolean;
+  lastBasePath: string;
 }
 
-const DEFAULT_SETTINGS: PluginSettings = { templatePath: "" };
+const DEFAULT_SETTINGS: PluginSettings = {
+  templatePath: "",
+  migratedTwinFolder: false,
+  lastBasePath: "",
+};
 
 export default class AttachmentsAutopilotPlugin extends Plugin {
   private queue!: TwinQueue;
@@ -53,6 +59,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
     let pendingGateResolve: (() => void) | null = null;
     let bulkBatchTimer: ReturnType<typeof setTimeout> | null = null;
     let renderHook: ((p: string) => Promise<string | null>) | undefined;
+    let templatedSerial: Promise<void> = Promise.resolve();
 
     this.queue = new TwinQueue(async (attachmentPath) => {
       await decisionGate;
@@ -67,7 +74,34 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
         renderTemplate = renderHook;
       }
 
-      await ensureTwin(twinVault, attachmentPath, folder, { renderTemplate });
+      let twinResult: Awaited<ReturnType<typeof ensureTwin>>;
+      if (renderTemplate) {
+        // Serialise the whole create→render→finalise sequence for the
+        // templated path. buildRenderHook only serialises the Templater call
+        // itself; other twins' concurrent vault.create/modify would still
+        // interleave with Templater's internal vault.process and silently
+        // drop the body for all but the first file.
+        const turn = templatedSerial.then(() =>
+          ensureTwin(twinVault, attachmentPath, folder, { renderTemplate }),
+        );
+        templatedSerial = turn.then(() => {}, () => {});
+        twinResult = await turn;
+      } else {
+        twinResult = await ensureTwin(twinVault, attachmentPath, folder, {
+          renderTemplate,
+        });
+      }
+
+      if (twinResult === "created-render-failed") {
+        // eslint-disable-next-line no-console
+        console.warn(
+          "[attachments-autopilot] template render failed after retries",
+          attachmentPath,
+        );
+        this.queue.markFailed(attachmentPath);
+        return;
+      }
+
       let previewResult: Awaited<ReturnType<typeof ensurePreview>> = "skipped";
       try {
         previewResult = await ensurePreview(twinVault, attachmentPath, folder);
@@ -134,6 +168,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
         decisionGate = Promise.resolve();
         pendingGateResolve = null;
         renderHook = undefined;
+        templatedSerial = Promise.resolve();
         if (bulkBatchTimer !== null) {
           clearTimeout(bulkBatchTimer);
           bulkBatchTimer = null;
@@ -270,10 +305,14 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
       id: "generate-base",
       name: t("commands.generateBase.name"),
       callback: async () => {
-        const result = await generateBaseFile(this.app);
+        const result = await generateBaseFile(this.app, this.settings.lastBasePath);
         if (result.status === "skipped-bases-disabled") {
           new Notice(t("notices.base.disabled.command"));
           return;
+        }
+        if (result.path !== null) {
+          this.settings.lastBasePath = result.path;
+          await this.saveSettings();
         }
         new Notice(
           t(
@@ -291,6 +330,7 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
     // existing file during initial vault indexing — registering here ensures
     // the handler only sees genuinely new files, not startup replay events.
     this.app.workspace.onLayoutReady(() => {
+      void this.migrateTwinFolder();
       this.registerEvent(
         this.app.vault.on("create", (file: TAbstractFile) => {
           const folder = resolveAttachmentFolder(this.app);
@@ -340,6 +380,26 @@ export default class AttachmentsAutopilotPlugin extends Plugin {
         }
       }
     });
+  }
+
+  private async migrateTwinFolder(): Promise<void> {
+    if (this.settings.migratedTwinFolder) return;
+    const folder = resolveAttachmentFolder(this.app);
+    const folderBasename = folder === "" ? "files" : folder.split("/").pop()!;
+    const oldPath = folder === "" ? "twin" : `${folder}/twin`;
+    const newPath = folder === "" ? `${folderBasename}-twins` : `${folder}/${folderBasename}-twins`;
+    const oldFolder = this.app.vault.getAbstractFileByPath(oldPath);
+    if (oldFolder instanceof TFolder) {
+      const count = this.app.vault.getMarkdownFiles()
+        .filter(f => f.path.startsWith(oldPath + "/")).length;
+      await this.app.fileManager.renameFile(oldFolder, newPath);
+      new Notice(
+        t("notices.migration.twinFolderRenamed", { newFolder: newPath, count }),
+        8000,
+      );
+    }
+    this.settings.migratedTwinFolder = true;
+    await this.saveSettings();
   }
 
   onunload(): void {}

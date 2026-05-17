@@ -7,59 +7,67 @@ import {
   attachmentFolderMode,
   sanitizeBasename,
 } from "../../src/services/pathService";
+import { twinDir, twinFile, previewDir, previewFile } from "./testHelpers";
 
 describe("twinPathsFor", () => {
+  // Golden-value canary: raw string assertion that does NOT use the helper,
+  // so helper/implementation drift causes an immediate failure here.
+  it("golden: attachments folder produces attachments-twins", () => {
+    expect(twinPathsFor("attachments/x.png", "attachments").twinFolder)
+      .toBe("attachments/attachments-twins");
+  });
+
   it("computes twin and preview paths in a nested attachment folder", () => {
     const p = twinPathsFor("attachments/photo.png", "attachments");
-    expect(p.twinFolder).toBe("attachments/twin");
-    expect(p.twinFile).toBe("attachments/twin/photo.png.md");
-    expect(p.previewFolder).toBe("attachments/twin/preview");
-    expect(p.previewFile("png")).toBe("attachments/twin/preview/photo.png.png");
-    expect(p.previewFile("gif")).toBe("attachments/twin/preview/photo.png.gif");
+    expect(p.twinFolder).toBe(twinDir("attachments"));
+    expect(p.twinFile).toBe(twinFile("attachments", "photo.png.md"));
+    expect(p.previewFolder).toBe(previewDir("attachments"));
+    expect(p.previewFile("png")).toBe(previewFile("attachments", "photo.png.png"));
+    expect(p.previewFile("gif")).toBe(previewFile("attachments", "photo.png.gif"));
   });
 
   it("handles vault-root attachments (empty folder)", () => {
     const p = twinPathsFor("photo.png", "");
-    expect(p.twinFolder).toBe("twin");
-    expect(p.twinFile).toBe("twin/photo.png.md");
-    expect(p.previewFile("gif")).toBe("twin/preview/photo.png.gif");
+    expect(p.twinFolder).toBe(twinDir(""));
+    expect(p.twinFile).toBe(twinFile("", "photo.png.md"));
+    expect(p.previewFile("gif")).toBe(previewFile("", "photo.png.gif"));
   });
 
   it("includes the source extension so same-stem files get distinct twins", () => {
     const a = twinPathsFor("attachments/track.mp3", "attachments");
     const b = twinPathsFor("attachments/track.aac", "attachments");
-    expect(a.twinFile).toBe("attachments/twin/track.mp3.md");
-    expect(b.twinFile).toBe("attachments/twin/track.aac.md");
+    expect(a.twinFile).toBe(twinFile("attachments", "track.mp3.md"));
+    expect(b.twinFile).toBe(twinFile("attachments", "track.aac.md"));
     expect(a.twinFile).not.toBe(b.twinFile);
-    expect(a.previewFile("svg")).toBe("attachments/twin/preview/track.mp3.svg");
-    expect(b.previewFile("svg")).toBe("attachments/twin/preview/track.aac.svg");
+    expect(a.previewFile("svg")).toBe(previewFile("attachments", "track.mp3.svg"));
+    expect(b.previewFile("svg")).toBe(previewFile("attachments", "track.aac.svg"));
   });
 
   it("preserves spaces and unicode in filenames", () => {
     const p = twinPathsFor("attachments/Holiday foto ñ.jpg", "attachments");
-    expect(p.twinFile).toBe("attachments/twin/Holiday foto ñ.jpg.md");
-    expect(p.previewFile("jpg")).toBe("attachments/twin/preview/Holiday foto ñ.jpg.jpg");
+    expect(p.twinFile).toBe(twinFile("attachments", "Holiday foto ñ.jpg.md"));
+    expect(p.previewFile("jpg")).toBe(previewFile("attachments", "Holiday foto ñ.jpg.jpg"));
   });
 
   it("treats the full filename as the basename for multi-dot names", () => {
     const p = twinPathsFor("attachments/archive.tar.gz", "attachments");
-    expect(p.twinFile).toBe("attachments/twin/archive.tar.gz.md");
+    expect(p.twinFile).toBe(twinFile("attachments", "archive.tar.gz.md"));
   });
 
   it("handles leading-dot filenames (no extension)", () => {
     const p = twinPathsFor("attachments/.gitkeep", "attachments");
-    expect(p.twinFile).toBe("attachments/twin/.gitkeep.md");
+    expect(p.twinFile).toBe(twinFile("attachments", ".gitkeep.md"));
   });
 
   it("sanitizes reserved characters in the basename", () => {
     const p = twinPathsFor("attachments/a:b?.png", "attachments");
-    expect(p.twinFile).toBe("attachments/twin/a_b_.png.md");
-    expect(p.previewFile("png")).toBe("attachments/twin/preview/a_b_.png.png");
+    expect(p.twinFile).toBe(twinFile("attachments", "a_b_.png.md"));
+    expect(p.previewFile("png")).toBe(previewFile("attachments", "a_b_.png.png"));
   });
 
   it("strips leading and trailing slashes from the attachment folder", () => {
     const p = twinPathsFor("attachments/x.png", "/attachments/");
-    expect(p.twinFolder).toBe("attachments/twin");
+    expect(p.twinFolder).toBe(twinDir("attachments"));
   });
 });
 
@@ -75,21 +83,21 @@ describe("sanitizeBasename", () => {
 });
 
 describe("isInsideTwinFolder", () => {
-  it("returns true for files inside twin/", () => {
-    expect(isInsideTwinFolder("attachments/twin/foo.md", "attachments")).toBe(true);
-    expect(isInsideTwinFolder("attachments/twin/preview/foo.png", "attachments")).toBe(true);
-    expect(isInsideTwinFolder("attachments/twin", "attachments")).toBe(true);
+  it("returns true for files inside the twin folder", () => {
+    expect(isInsideTwinFolder(twinFile("attachments", "foo.md"), "attachments")).toBe(true);
+    expect(isInsideTwinFolder(previewFile("attachments", "foo.png"), "attachments")).toBe(true);
+    expect(isInsideTwinFolder(twinDir("attachments"), "attachments")).toBe(true);
   });
 
-  it("returns false for files outside twin/", () => {
+  it("returns false for files outside the twin folder", () => {
     expect(isInsideTwinFolder("attachments/foo.png", "attachments")).toBe(false);
-    expect(isInsideTwinFolder("notes/twin/foo.md", "attachments")).toBe(false);
+    expect(isInsideTwinFolder("notes/notes-twins/foo.md", "attachments")).toBe(false);
     expect(isInsideTwinFolder("attachments/twinning.png", "attachments")).toBe(false);
   });
 
   it("works for vault-root attachment folder", () => {
-    expect(isInsideTwinFolder("twin/foo.md", "")).toBe(true);
-    expect(isInsideTwinFolder("twin", "")).toBe(true);
+    expect(isInsideTwinFolder(twinFile("", "foo.md"), "")).toBe(true);
+    expect(isInsideTwinFolder(twinDir(""), "")).toBe(true);
     expect(isInsideTwinFolder("foo.png", "")).toBe(false);
   });
 });
@@ -97,7 +105,7 @@ describe("isInsideTwinFolder", () => {
 describe("isInsideAttachmentFolder", () => {
   it("returns true for files in the configured folder", () => {
     expect(isInsideAttachmentFolder("attachments/foo.png", "attachments")).toBe(true);
-    expect(isInsideAttachmentFolder("attachments/twin/foo.md", "attachments")).toBe(true);
+    expect(isInsideAttachmentFolder(twinFile("attachments", "foo.md"), "attachments")).toBe(true);
   });
   it("returns false for files outside the configured folder", () => {
     expect(isInsideAttachmentFolder("notes/foo.md", "attachments")).toBe(false);
@@ -156,14 +164,14 @@ describe("resolveAttachmentFolder", () => {
   // before it ships.
   describe("normalizer matrix", () => {
     const cases: Array<{ name: string; input: unknown; folder: string; twinFile: string }> = [
-      { name: "default 'attachments'",     input: "attachments",     folder: "attachments",     twinFile: "attachments/twin/photo.png.md" },
-      { name: "vault root (empty)",         input: "",                folder: "",                twinFile: "twin/photo.png.md" },
-      { name: "nested 'notes/files'",       input: "notes/files",     folder: "notes/files",     twinFile: "notes/files/twin/photo.png.md" },
-      { name: "wrapping slashes",           input: "/attachments/",   folder: "attachments",     twinFile: "attachments/twin/photo.png.md" },
-      { name: "spaces in folder",           input: "My Attachments",  folder: "My Attachments",  twinFile: "My Attachments/twin/photo.png.md" },
-      { name: "unicode + trailing slash",   input: "附件/",            folder: "附件",             twinFile: "附件/twin/photo.png.md" },
-      { name: "doubled slashes",            input: "//attachments//", folder: "attachments",     twinFile: "attachments/twin/photo.png.md" },
-      { name: "leading + trailing whitespace", input: "   attachments   ", folder: "attachments", twinFile: "attachments/twin/photo.png.md" },
+      { name: "default 'attachments'",        input: "attachments",     folder: "attachments",    twinFile: twinFile("attachments",    "photo.png.md") },
+      { name: "vault root (empty)",            input: "",                folder: "",               twinFile: twinFile("",               "photo.png.md") },
+      { name: "nested 'notes/files'",          input: "notes/files",     folder: "notes/files",    twinFile: twinFile("notes/files",    "photo.png.md") },
+      { name: "wrapping slashes",              input: "/attachments/",   folder: "attachments",    twinFile: twinFile("attachments",    "photo.png.md") },
+      { name: "spaces in folder",              input: "My Attachments",  folder: "My Attachments", twinFile: twinFile("My Attachments", "photo.png.md") },
+      { name: "unicode + trailing slash",      input: "附件/",            folder: "附件",            twinFile: twinFile("附件",           "photo.png.md") },
+      { name: "doubled slashes",               input: "//attachments//", folder: "attachments",    twinFile: twinFile("attachments",    "photo.png.md") },
+      { name: "leading + trailing whitespace", input: "   attachments   ", folder: "attachments",  twinFile: twinFile("attachments",    "photo.png.md") },
     ];
 
     for (const c of cases) {

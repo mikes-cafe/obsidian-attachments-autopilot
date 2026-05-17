@@ -1,12 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import type { App, TFile } from "obsidian";
 import { fromObsidianVault } from "../../src/services/obsidianVault";
+import { twinDir, twinFile } from "./testHelpers";
 
 const fakeFile = (path: string): TFile => ({ path, name: path }) as TFile;
 
 describe("fromObsidianVault.createFolder", () => {
   it("swallows the error and returns silently when the folder already exists after the throw", async () => {
-    const folders = new Set<string>(["attachments/twin"]);
+    const folders = new Set<string>([twinDir("attachments")]);
     const app = {
       vault: {
         getAbstractFileByPath: (p: string) =>
@@ -18,8 +19,8 @@ describe("fromObsidianVault.createFolder", () => {
     } as unknown as App;
     const wrapper = fromObsidianVault(app);
 
-    await expect(wrapper.createFolder("attachments/twin")).resolves.toBeUndefined();
-    expect(wrapper.exists("attachments/twin")).toBe(true);
+    await expect(wrapper.createFolder(twinDir("attachments"))).resolves.toBeUndefined();
+    expect(wrapper.exists(twinDir("attachments"))).toBe(true);
   });
 
   it("rethrows when createFolder fails AND the folder still doesn't exist", async () => {
@@ -33,13 +34,13 @@ describe("fromObsidianVault.createFolder", () => {
     } as unknown as App;
     const wrapper = fromObsidianVault(app);
 
-    await expect(wrapper.createFolder("attachments/twin")).rejects.toThrow(/Failed to create folder/);
+    await expect(wrapper.createFolder(twinDir("attachments"))).rejects.toThrow(/Failed to create folder/);
   });
 });
 
 describe("fromObsidianVault.rename", () => {
   it("delegates to fileManager.renameFile to update inbound wikilinks", async () => {
-    const file = fakeFile("attachments/twin/old.md");
+    const file = fakeFile(twinFile("attachments", "old.md"));
     const renameFile = vi.fn(async () => undefined);
     const app = {
       vault: { getAbstractFileByPath: () => file },
@@ -47,8 +48,8 @@ describe("fromObsidianVault.rename", () => {
     } as unknown as App;
     const wrapper = fromObsidianVault(app);
 
-    await wrapper.rename("attachments/twin/old.md", "attachments/twin/new.md");
-    expect(renameFile).toHaveBeenCalledWith(file, "attachments/twin/new.md");
+    await wrapper.rename(twinFile("attachments", "old.md"), twinFile("attachments", "new.md"));
+    expect(renameFile).toHaveBeenCalledWith(file, twinFile("attachments", "new.md"));
   });
 
   it("throws when the source path does not exist", async () => {
@@ -63,14 +64,14 @@ describe("fromObsidianVault.rename", () => {
 
 describe("fromObsidianVault.delete", () => {
   it("delegates to vault.delete with the resolved TFile", async () => {
-    const file = fakeFile("attachments/twin/photo.png.md");
+    const file = fakeFile(twinFile("attachments", "photo.png.md"));
     const del = vi.fn(async () => undefined);
     const app = {
       vault: { getAbstractFileByPath: () => file, delete: del },
     } as unknown as App;
     const wrapper = fromObsidianVault(app);
 
-    await wrapper.delete("attachments/twin/photo.png.md");
+    await wrapper.delete(twinFile("attachments", "photo.png.md"));
     expect(del).toHaveBeenCalledWith(file);
   });
 });
@@ -89,12 +90,12 @@ describe("fromObsidianVault.formatLink", () => {
 
     const link = await wrapper.formatLink(
       "attachments/photo.png",
-      "attachments/twin/photo.png.md",
+      "attachments/attachments-twins/photo.png.md",
     );
     expect(link).toBe("[photo.png](attachments/photo.png)");
     expect(generateMarkdownLink).toHaveBeenCalledWith(
       target,
-      "attachments/twin/photo.png.md",
+      "attachments/attachments-twins/photo.png.md",
     );
   });
 
@@ -126,13 +127,13 @@ describe("fromObsidianVault.formatLink", () => {
     try {
       const link = await wrapper.formatLink(
         "attachments/photo.png",
-        "attachments/twin/photo.png.md",
+        "attachments/attachments-twins/photo.png.md",
       );
       expect(link).toBe("[[photo.png]]");
       expect(getAbstractFileByPath).toHaveBeenCalledTimes(2);
       expect(generateMarkdownLink).toHaveBeenCalledWith(
         target,
-        "attachments/twin/photo.png.md",
+        "attachments/attachments-twins/photo.png.md",
       );
     } finally {
       if (realSetTimeout) {
@@ -158,7 +159,7 @@ describe("fromObsidianVault.formatLink", () => {
     };
 
     expect(
-      await wrapper.formatLink("attachments/photo.png", "attachments/twin/x.md"),
+      await wrapper.formatLink("attachments/photo.png", twinFile("attachments", "x.md")),
     ).toBe("[[attachments/photo.png]]");
   });
 });

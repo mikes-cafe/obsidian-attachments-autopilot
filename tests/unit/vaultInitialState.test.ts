@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { App, TAbstractFile, TFile, TFolder } from "obsidian";
 import { findOrphanAttachments } from "../../src/commands/generateMissingTwins";
 import { findAttachmentsWithoutPreview } from "../../src/commands/generateMissingPreviews";
+import { twinFile, previewFile } from "./testHelpers";
 
 const mkFile = (path: string): TFile => {
   const name = path.split("/").pop() ?? "";
@@ -61,9 +62,9 @@ describe("vault initial state — combined orphan + missing-preview scans", () =
     ]);
     // photo.png is self-reference (no preview file); clip.mp4 has its GIF preview.
     const existing = new Set([
-      "attachments/twin/photo.png.md",
-      "attachments/twin/clip.mp4.md",
-      "attachments/twin/preview/clip.mp4.gif",
+      twinFile("attachments", "photo.png.md"),
+      twinFile("attachments", "clip.mp4.md"),
+      previewFile("attachments", "clip.mp4.gif"),
     ]);
     const app = buildApp("attachments", tree, existing);
     expect(findOrphanAttachments(app)).toEqual([]);
@@ -90,8 +91,8 @@ describe("vault initial state — combined orphan + missing-preview scans", () =
       mkFile("attachments/clip.mp4"),
     ]);
     const existing = new Set([
-      "attachments/twin/photo.png.md",
-      "attachments/twin/clip.mp4.md",
+      twinFile("attachments", "photo.png.md"),
+      twinFile("attachments", "clip.mp4.md"),
     ]);
     const app = buildApp("attachments", tree, existing);
     expect(findOrphanAttachments(app)).toEqual([]);
@@ -105,7 +106,7 @@ describe("vault initial state — combined orphan + missing-preview scans", () =
     ]);
     // photo.png is fully processed (twin only — self-reference, no preview file);
     // clip.mp4 has neither twin nor preview.
-    const existing = new Set(["attachments/twin/photo.png.md"]);
+    const existing = new Set([twinFile("attachments", "photo.png.md")]);
     const app = buildApp("attachments", tree, existing);
     expect(findOrphanAttachments(app)).toEqual(["attachments/clip.mp4"]);
     expect(findAttachmentsWithoutPreview(app)).toEqual(["attachments/clip.mp4"]);

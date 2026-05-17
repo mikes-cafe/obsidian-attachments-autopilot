@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { ensurePreview } from "../../src/services/previewService";
 import { ensureTwin, type TwinVault } from "../../src/services/twinService";
 import type { PreviewGenerator } from "../../src/services/previews";
+import { twinFile, previewDir, previewFile } from "./testHelpers";
 
 class FakeVault implements TwinVault {
   files = new Map<string, string>();
@@ -78,10 +79,10 @@ describe("ensurePreview", () => {
     const result = await ensurePreview(v, "attachments/photo.png", "attachments", gens);
 
     expect(result).toBe("created");
-    expect(v.folders.has("attachments/twin/preview")).toBe(true);
-    expect(v.binary.has("attachments/twin/preview/photo.png.png")).toBe(true);
-    expect(v.files.get("attachments/twin/photo.png.md")).toContain(
-      'attachment-prev: "[[attachments/twin/preview/photo.png.png]]"',
+    expect(v.folders.has(previewDir("attachments"))).toBe(true);
+    expect(v.binary.has(previewFile("attachments", "photo.png.png"))).toBe(true);
+    expect(v.files.get(twinFile("attachments", "photo.png.md"))).toContain(
+      `attachment-prev: "[[${previewFile("attachments", "photo.png.png")}]]"`,
     );
   });
 
@@ -116,7 +117,7 @@ describe("ensurePreview", () => {
     const result = await ensurePreview(v, "attachments/photo.png", "attachments", gens);
 
     expect(result).toBe("failed");
-    expect(v.binary.has("attachments/twin/preview/photo.png.png")).toBe(false);
+    expect(v.binary.has(previewFile("attachments", "photo.png.png"))).toBe(false);
     errSpy.mockRestore();
   });
 
@@ -128,9 +129,9 @@ describe("ensurePreview", () => {
 
     await ensurePreview(v, "attachments/clip.mp4", "attachments", gens);
 
-    expect(v.binary.has("attachments/twin/preview/clip.mp4.gif")).toBe(true);
-    expect(v.files.get("attachments/twin/clip.mp4.md")).toContain(
-      'attachment-prev: "[[attachments/twin/preview/clip.mp4.gif]]"',
+    expect(v.binary.has(previewFile("attachments", "clip.mp4.gif"))).toBe(true);
+    expect(v.files.get(twinFile("attachments", "clip.mp4.md"))).toContain(
+      `attachment-prev: "[[${previewFile("attachments", "clip.mp4.gif")}]]"`,
     );
   });
 
@@ -140,7 +141,7 @@ describe("ensurePreview", () => {
     const gens = { png: makeGen() };
     const result = await ensurePreview(v, "attachments/photo.png", "attachments", gens);
     expect(result).toBe("created");
-    expect(v.binary.has("attachments/twin/preview/photo.png.png")).toBe(true);
+    expect(v.binary.has(previewFile("attachments", "photo.png.png"))).toBe(true);
   });
 
   it("isolates a failing pdf generator from a working png generator (cross-generator independence)", async () => {
@@ -164,8 +165,8 @@ describe("ensurePreview", () => {
 
     expect(pdfResult).toBe("failed");
     expect(pngResult).toBe("created");
-    expect(v.binary.has("attachments/twin/preview/photo.png.png")).toBe(true);
-    expect(v.binary.has("attachments/twin/preview/doc.pdf.png")).toBe(false);
+    expect(v.binary.has(previewFile("attachments", "photo.png.png"))).toBe(true);
+    expect(v.binary.has(previewFile("attachments", "doc.pdf.png"))).toBe(false);
     errSpy.mockRestore();
   });
 
@@ -182,9 +183,9 @@ describe("ensurePreview", () => {
 
     expect(result).toBe("exists");
     expect(generate).not.toHaveBeenCalled();
-    expect(v.folders.has("attachments/twin/preview")).toBe(false);
-    expect(v.binary.has("attachments/twin/preview/photo.png.png")).toBe(false);
-    expect(v.files.get("attachments/twin/photo.png.md")).toContain(
+    expect(v.folders.has(previewDir("attachments"))).toBe(false);
+    expect(v.binary.has(previewFile("attachments", "photo.png.png"))).toBe(false);
+    expect(v.files.get(twinFile("attachments", "photo.png.md"))).toContain(
       'attachment-prev: "[[attachments/photo.png]]"',
     );
   });
@@ -210,8 +211,8 @@ describe("ensurePreview", () => {
 
     expect(mp4Result).toBe("failed");
     expect(mp3Result).toBe("created");
-    expect(v.binary.has("attachments/twin/preview/song.mp3.svg")).toBe(true);
-    expect(v.binary.has("attachments/twin/preview/clip.mp4.gif")).toBe(false);
+    expect(v.binary.has(previewFile("attachments", "song.mp3.svg"))).toBe(true);
+    expect(v.binary.has(previewFile("attachments", "clip.mp4.gif"))).toBe(false);
     errSpy.mockRestore();
   });
 });

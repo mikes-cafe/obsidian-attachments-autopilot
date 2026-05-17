@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { App, TAbstractFile, TFile, TFolder } from "obsidian";
 import { findAttachmentsWithoutPreview } from "../../src/commands/generateMissingPreviews";
+import { twinDir, previewFile } from "./testHelpers";
 
 const mkFile = (path: string): TFile => {
   const name = path.split("/").pop() ?? "";
@@ -75,7 +76,7 @@ describe("findAttachmentsWithoutPreview", () => {
     const app = buildApp(
       "attachments",
       tree,
-      new Set(["attachments/twin/preview/song.mp3.svg"]),
+      new Set([previewFile("attachments", "song.mp3.svg")]),
     );
     expect(findAttachmentsWithoutPreview(app)).toEqual(["attachments/clip.mp4"]);
   });
@@ -99,10 +100,10 @@ describe("findAttachmentsWithoutPreview", () => {
     expect(findAttachmentsWithoutPreview(app)).toEqual(["attachments/clip.mp4"]);
   });
 
-  it("does not descend into the twin/ subtree", () => {
-    const twinSub = mkFolder("attachments/twin", [
-      mkFile("attachments/twin/old.md"),
-      mkFolder("attachments/twin/preview", [mkFile("attachments/twin/preview/stale.png")]),
+  it("does not descend into the twin subtree", () => {
+    const twinSub = mkFolder(twinDir("attachments"), [
+      mkFile(`${twinDir("attachments")}/old.md`),
+      mkFolder(`${twinDir("attachments")}/preview`, [mkFile(`${twinDir("attachments")}/preview/stale.png`)]),
     ]);
     const tree = mkFolder("attachments", [mkFile("attachments/song.mp3"), twinSub]);
     const app = buildApp("attachments", tree);

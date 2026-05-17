@@ -90,7 +90,8 @@ export function twinPathsFor(attachmentPath: string, attachmentFolder: string): 
   const safeName = sanitizeBasename(fileName);
 
   const folder = stripSlashes(attachmentFolder);
-  const twinFolder = folder === "" ? "twin" : `${folder}/twin`;
+  const folderBasename = folder === "" ? "files" : folder.split("/").pop()!;
+  const twinFolder = folder === "" ? `${folderBasename}-twins` : `${folder}/${folderBasename}-twins`;
   const previewFolder = `${twinFolder}/preview`;
 
   return {
@@ -103,7 +104,8 @@ export function twinPathsFor(attachmentPath: string, attachmentFolder: string): 
 
 export function isInsideTwinFolder(filePath: string, attachmentFolder: string): boolean {
   const folder = stripSlashes(attachmentFolder);
-  const twinPrefix = folder === "" ? "twin" : `${folder}/twin`;
+  const folderBasename = folder === "" ? "files" : folder.split("/").pop()!;
+  const twinPrefix = folder === "" ? `${folderBasename}-twins` : `${folder}/${folderBasename}-twins`;
   return filePath === twinPrefix || filePath.startsWith(`${twinPrefix}/`);
 }
 

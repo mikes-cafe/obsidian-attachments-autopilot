@@ -9,6 +9,7 @@ import {
   setTwinType,
   type TwinVault,
 } from "../../src/services/twinService";
+import { twinDir, twinFile } from "./testHelpers";
 
 class FakeVault implements TwinVault {
   files = new Map<string, string>();
@@ -113,8 +114,8 @@ describe("buildTwinContent", () => {
 describe("setTwinPreview", () => {
   it("replaces an existing empty attachment-prev line", () => {
     const before = buildTwinContent("[[a/x.png]]", "png");
-    const after = setTwinPreview(before, "[[a/twin/preview/x.png]]");
-    expect(after).toContain('attachment-prev: "[[a/twin/preview/x.png]]"');
+    const after = setTwinPreview(before, "[[a/a-twins/preview/x.png]]");
+    expect(after).toContain('attachment-prev: "[[a/a-twins/preview/x.png]]"');
     expect(after).not.toMatch(/^attachment-prev:\s*$/m);
   });
 
@@ -130,23 +131,23 @@ describe("setTwinPreview", () => {
 
   it("inserts the property when missing, before the closing fence", () => {
     const without = ['---', 'attachment-ref: "[[a/x.png]]"', 'attachment-type: png', '---', ''].join("\n");
-    const after = setTwinPreview(without, "[[a/twin/preview/x.png]]");
-    expect(after).toContain('attachment-prev: "[[a/twin/preview/x.png]]"');
+    const after = setTwinPreview(without, "[[a/a-twins/preview/x.png]]");
+    expect(after).toContain('attachment-prev: "[[a/a-twins/preview/x.png]]"');
     expect(after.match(/^---\s*$/gm)?.length).toBe(2);
   });
 
   it("preserves attachment-ref and attachment-type lines", () => {
     const before = buildTwinContent("[[a/x.png]]", "png");
-    const after = setTwinPreview(before, "[[a/twin/preview/x.png]]");
+    const after = setTwinPreview(before, "[[a/a-twins/preview/x.png]]");
     expect(after).toContain('attachment-ref: "[[a/x.png]]"');
     expect(after).toContain("attachment-type: png");
   });
 
   it("works with markdown-style preview link", () => {
     const before = buildTwinContent("[[a/x.png]]", "png");
-    const after = setTwinPreview(before, "[x.png](a/twin/preview/x.png)");
+    const after = setTwinPreview(before, "[x.png](a/a-twins/preview/x.png)");
     expect(after).toContain(
-      'attachment-prev: "[x.png](a/twin/preview/x.png)"',
+      'attachment-prev: "[x.png](a/a-twins/preview/x.png)"',
     );
   });
 });
@@ -162,11 +163,11 @@ describe("setTwinRef", () => {
   it("preserves attachment-type and attachment-prev when only the ref changes", () => {
     const before = buildTwinContent("[[a/x.png]]", "png").replace(
       "attachment-prev:",
-      'attachment-prev: "[[a/twin/preview/x.png.png]]"',
+      'attachment-prev: "[[a/a-twins/preview/x.png.png]]"',
     );
     const after = setTwinRef(before, "[[b/y.png]]");
     expect(after).toContain("attachment-type: png");
-    expect(after).toContain('attachment-prev: "[[a/twin/preview/x.png.png]]"');
+    expect(after).toContain('attachment-prev: "[[a/a-twins/preview/x.png.png]]"');
     expect(after).toContain('attachment-ref: "[[b/y.png]]"');
   });
 
@@ -241,9 +242,9 @@ describe("ensureTwin", () => {
     const v = new FakeVault();
     const result = await ensureTwin(v, "attachments/photo.png", "attachments");
     expect(result).toBe("created");
-    expect(v.folders.has("attachments/twin")).toBe(true);
-    expect(v.files.has("attachments/twin/photo.png.md")).toBe(true);
-    expect(v.files.get("attachments/twin/photo.png.md")).toContain(
+    expect(v.folders.has(twinDir("attachments"))).toBe(true);
+    expect(v.files.has(twinFile("attachments", "photo.png.md"))).toBe(true);
+    expect(v.files.get(twinFile("attachments", "photo.png.md"))).toContain(
       'attachment-ref: "[[attachments/photo.png]]"',
     );
   });
@@ -268,31 +269,31 @@ describe("ensureTwin", () => {
 
   it("does not call createFolder when the twin folder already exists", async () => {
     const v = new FakeVault();
-    v.folders.add("attachments/twin");
+    v.folders.add(twinDir("attachments"));
     await ensureTwin(v, "attachments/photo.png", "attachments");
     expect(v.createFolderCalls).toBe(0);
-    expect(v.files.has("attachments/twin/photo.png.md")).toBe(true);
+    expect(v.files.has(twinFile("attachments", "photo.png.md"))).toBe(true);
   });
 
   it("works at vault root when attachment folder is empty", async () => {
     const v = new FakeVault();
     await ensureTwin(v, "photo.png", "");
-    expect(v.folders.has("twin")).toBe(true);
-    expect(v.files.has("twin/photo.png.md")).toBe(true);
+    expect(v.folders.has(twinDir(""))).toBe(true);
+    expect(v.files.has(twinFile("", "photo.png.md"))).toBe(true);
   });
 
   it("includes the lowercased extension as attachment-type", async () => {
     const v = new FakeVault();
     await ensureTwin(v, "attachments/Doc.PDF", "attachments");
-    expect(v.files.get("attachments/twin/Doc.PDF.md")).toContain("attachment-type: pdf");
+    expect(v.files.get(twinFile("attachments", "Doc.PDF.md"))).toContain("attachment-type: pdf");
   });
 
   it("creates two distinct twins for same-stem attachments with different extensions", async () => {
     const v = new FakeVault();
     await ensureTwin(v, "attachments/track.mp3", "attachments");
     await ensureTwin(v, "attachments/track.aac", "attachments");
-    expect(v.files.has("attachments/twin/track.mp3.md")).toBe(true);
-    expect(v.files.has("attachments/twin/track.aac.md")).toBe(true);
+    expect(v.files.has(twinFile("attachments", "track.mp3.md"))).toBe(true);
+    expect(v.files.has(twinFile("attachments", "track.aac.md"))).toBe(true);
     expect(v.createCalls).toBe(2);
   });
 
@@ -300,9 +301,9 @@ describe("ensureTwin", () => {
     const v = new FakeVault();
     const result = await ensureTwin(v, "attachments/a:b?.png", "attachments");
     expect(result).toBe("created");
-    expect(v.files.has("attachments/twin/a_b_.png.md")).toBe(true);
+    expect(v.files.has(twinFile("attachments", "a_b_.png.md"))).toBe(true);
     // Frontmatter still references the original (unsanitized) path
-    expect(v.files.get("attachments/twin/a_b_.png.md")).toContain(
+    expect(v.files.get(twinFile("attachments", "a_b_.png.md"))).toContain(
       'attachment-ref: "[[attachments/a:b?.png]]"',
     );
   });
@@ -314,7 +315,7 @@ describe("ensureTwin", () => {
     const renderTemplate = async (_path: string) => rendered;
     const result = await ensureTwin(v, "attachments/photo.png", "attachments", { renderTemplate });
     expect(result).toBe("created");
-    const content = v.files.get("attachments/twin/photo.png.md")!;
+    const content = v.files.get(twinFile("attachments", "photo.png.md"))!;
     expect(content).toContain('attachment-ref: "[[attachments/photo.png]]"');
     expect(content).toContain("attachment-type: png");
     expect(content).toContain("attachment-prev:");
@@ -323,12 +324,12 @@ describe("ensureTwin", () => {
     expect(v.modifyCalls).toBe(1);
   });
 
-  it("falls back to stub content when renderTemplate returns null", async () => {
+  it("reports created-render-failed and keeps the stub when renderTemplate returns null", async () => {
     const v = new FakeVault();
     const renderTemplate = async (_path: string): Promise<string | null> => null;
     const result = await ensureTwin(v, "attachments/photo.png", "attachments", { renderTemplate });
-    expect(result).toBe("created");
-    const content = v.files.get("attachments/twin/photo.png.md")!;
+    expect(result).toBe("created-render-failed");
+    const content = v.files.get(twinFile("attachments", "photo.png.md"))!;
     expect(content).toContain('attachment-ref: "[[attachments/photo.png]]"');
     expect(v.modifyCalls).toBe(0);
   });
@@ -338,8 +339,8 @@ describe("ensureTwin", () => {
     const v2 = new FakeVault();
     await ensureTwin(v1, "attachments/photo.png", "attachments");
     await ensureTwin(v2, "attachments/photo.png", "attachments", {});
-    expect(v1.files.get("attachments/twin/photo.png.md")).toBe(
-      v2.files.get("attachments/twin/photo.png.md"),
+    expect(v1.files.get(twinFile("attachments", "photo.png.md"))).toBe(
+      v2.files.get(twinFile("attachments", "photo.png.md")),
     );
     expect(v2.modifyCalls).toBe(0);
   });
@@ -348,7 +349,8 @@ describe("ensureTwin", () => {
     const v = new FakeVault();
     let capturedPath = "";
     const renderTemplate = async (p: string) => { capturedPath = p; return null; };
-    await ensureTwin(v, "attachments/photo.png", "attachments", { renderTemplate });
-    expect(capturedPath).toBe("attachments/twin/photo.png.md");
+    const result = await ensureTwin(v, "attachments/photo.png", "attachments", { renderTemplate });
+    expect(capturedPath).toBe(twinFile("attachments", "photo.png.md"));
+    expect(result).toBe("created-render-failed");
   });
 });

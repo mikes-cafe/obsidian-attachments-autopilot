@@ -1,9 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   isTemplaterEnabled,
   getTemplaterFolder,
   listTemplates,
   buildRenderHook,
+  renderApplied,
 } from "../../src/services/templaterService";
 import type { App, TFile } from "obsidian";
 
@@ -103,13 +104,55 @@ describe("listTemplates", () => {
   });
 });
 
-describe("buildRenderHook", () => {
-  it("calls write_template_to_file with the right files and returns content", async () => {
-    const templateFile = makeTFile("templates/Twin.md");
-    const twinFile = makeTFile("attachments/twin/photo.png.md");
-    const writeFn = vi.fn().mockResolvedValue(undefined);
-    const readFn = vi.fn().mockResolvedValue("rendered content");
+describe("renderApplied", () => {
+  it("is false when content is unchanged (Templater no-op)", () => {
+    expect(renderApplied("---\nstub\n---\n", "---\nstub\n---\n")).toBe(false);
+  });
+  it("is true when the file grew (body appended)", () => {
+    expect(renderApplied("---\nstub\n---\n", "---\nstub\n---\n# Body\n")).toBe(true);
+  });
+  it("is false when the file shrank", () => {
+    expect(renderApplied("---\nstub\n---\nlong", "---\n")).toBe(false);
+  });
+});
 
+describe("buildRenderHook", () => {
+  const STUB = "---\nattachment-ref: x\n---\n";
+  const TWIN = "attachments/attachments-twins/photo.png.md";
+  const TEMPLATE = "templates/Twin.md";
+
+  // Node test env has no `window`; the hook's backoff uses window.setTimeout
+  // (same pattern as obsidianVault.formatLink). Resolve it immediately so the
+  // retry loop doesn't actually wait 50ms per attempt.
+  let realWindow: unknown;
+  beforeEach(() => {
+    realWindow = (globalThis as unknown as { window?: unknown }).window;
+    (globalThis as unknown as { window: { setTimeout: typeof setTimeout } }).window = {
+      setTimeout: ((cb: () => void) => {
+        cb();
+        return 0 as unknown as ReturnType<typeof setTimeout>;
+      }) as typeof setTimeout,
+    };
+  });
+  afterEach(() => {
+    (globalThis as unknown as { window: unknown }).window = realWindow;
+  });
+
+  // Stateful fake: `write` mutates the in-memory twin content so before/after
+  // diffs are meaningful (the real failure mode is a no-op write read back as
+  // a false success). `twinVisibleAfter` simulates the Bug-004 cache lag.
+  function makeStatefulApp(opts: {
+    twinInitial: string;
+    write: (files: Map<string, string>) => void;
+    twinVisibleAfter?: number;
+  }) {
+    const files = new Map<string, string>([[TWIN, opts.twinInitial]]);
+    const templateFile = { path: TEMPLATE, basename: "Twin" } as TFile;
+    const twinFile = { path: TWIN, basename: "photo.png" } as TFile;
+    let twinLookups = 0;
+    const writeFn = vi.fn(async () => {
+      opts.write(files);
+    });
     const app = {
       plugins: {
         getPlugin: () => ({
@@ -119,50 +162,112 @@ describe("buildRenderHook", () => {
       },
       vault: {
         getMarkdownFiles: () => [],
-        getAbstractFileByPath: (p: string) =>
-          p === templateFile.path ? templateFile : p === twinFile.path ? twinFile : null,
-        read: readFn,
+        getAbstractFileByPath: (p: string) => {
+          if (p === TEMPLATE) return templateFile;
+          if (p === TWIN) {
+            twinLookups += 1;
+            if (opts.twinVisibleAfter && twinLookups < opts.twinVisibleAfter) {
+              return null;
+            }
+            return twinFile;
+          }
+          return null;
+        },
+        read: async (f: TFile) => files.get(f.path) ?? "",
       },
     } as unknown as App;
+    return { app, files, writeFn, templateFile, twinFile };
+  }
 
-    const hook = buildRenderHook(app, templateFile.path);
-    const result = await hook(twinFile.path);
+  it("returns the rendered content when the body is applied", async () => {
+    const { app, writeFn } = makeStatefulApp({
+      twinInitial: STUB,
+      write: (files) => files.set(TWIN, STUB + "# Rendered body\n"),
+    });
+    const result = await buildRenderHook(app, TEMPLATE)(TWIN);
+    expect(result).toBe(STUB + "# Rendered body\n");
+    expect(writeFn).toHaveBeenCalledTimes(1);
+  });
 
-    expect(writeFn).toHaveBeenCalledWith(templateFile, twinFile);
-    expect(readFn).toHaveBeenCalledWith(twinFile);
-    expect(result).toBe("rendered content");
+  it("retries when the first write no-ops, then succeeds", async () => {
+    let calls = 0;
+    const { app, writeFn } = makeStatefulApp({
+      twinInitial: STUB,
+      write: (files) => {
+        calls += 1;
+        if (calls >= 2) files.set(TWIN, STUB + "# Body\n");
+      },
+    });
+    const result = await buildRenderHook(app, TEMPLATE)(TWIN);
+    expect(result).toBe(STUB + "# Body\n");
+    expect(writeFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns null (not the stub) when the body is never applied", async () => {
+    const { app, files, writeFn } = makeStatefulApp({
+      twinInitial: STUB,
+      write: () => {
+        /* Templater no-op: leaves the file as the base stub */
+      },
+    });
+    const result = await buildRenderHook(app, TEMPLATE)(TWIN);
+    expect(result).toBeNull();
+    expect(writeFn).toHaveBeenCalledTimes(3);
+    expect(files.get(TWIN)).toBe(STUB);
+  });
+
+  it("retries the twin lookup when it is briefly invisible (Bug-004)", async () => {
+    const { app, writeFn } = makeStatefulApp({
+      twinInitial: STUB,
+      write: (files) => files.set(TWIN, STUB + "# Body\n"),
+      twinVisibleAfter: 2,
+    });
+    const result = await buildRenderHook(app, TEMPLATE)(TWIN);
+    expect(result).toBe(STUB + "# Body\n");
+    expect(writeFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns null and never writes when the twin never resolves", async () => {
+    const { app, writeFn } = makeStatefulApp({
+      twinInitial: STUB,
+      write: (files) => files.set(TWIN, STUB + "# Body\n"),
+      twinVisibleAfter: 99,
+    });
+    const result = await buildRenderHook(app, TEMPLATE)(TWIN);
+    expect(result).toBeNull();
+    expect(writeFn).not.toHaveBeenCalled();
   });
 
   it("returns null when Templater is not enabled", async () => {
     const app = makeApp({ installed: false });
-    const hook = buildRenderHook(app, "templates/Twin.md");
-    expect(await hook("attachments/twin/photo.png.md")).toBeNull();
+    const hook = buildRenderHook(app, TEMPLATE);
+    expect(await hook(TWIN)).toBeNull();
   });
 
   it("returns null when the template file is not found in vault", async () => {
-    const twinFile = makeTFile("attachments/twin/photo.png.md");
-    const app = makeApp({
-      fileByPath: { "attachments/twin/photo.png.md": twinFile },
-    });
+    const twinFile = makeTFile(TWIN);
+    const app = makeApp({ fileByPath: { [TWIN]: twinFile } });
     const hook = buildRenderHook(app, "templates/Missing.md");
     expect(await hook(twinFile.path)).toBeNull();
   });
 
   it("returns null when write_template_to_file throws", async () => {
-    const templateFile = makeTFile("templates/Twin.md");
-    const twinFile = makeTFile("attachments/twin/photo.png.md");
+    const templateFile = makeTFile(TEMPLATE);
+    const twinFile = makeTFile(TWIN);
     const app = {
       plugins: {
         getPlugin: () => ({
           settings: { templates_folder: "templates" },
-          templater: { write_template_to_file: vi.fn().mockRejectedValue(new Error("boom")) },
+          templater: {
+            write_template_to_file: vi.fn().mockRejectedValue(new Error("boom")),
+          },
         }),
       },
       vault: {
         getMarkdownFiles: () => [],
         getAbstractFileByPath: (p: string) =>
           p === templateFile.path ? templateFile : p === twinFile.path ? twinFile : null,
-        read: vi.fn(),
+        read: vi.fn().mockResolvedValue(""),
       },
     } as unknown as App;
 

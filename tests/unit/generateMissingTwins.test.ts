@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { App, TAbstractFile, TFile, TFolder } from "obsidian";
 import { findOrphanAttachments } from "../../src/commands/generateMissingTwins";
+import { twinDir, twinFile } from "./testHelpers";
 
 const mkFile = (path: string): TFile => {
   const name = path.split("/").pop() ?? "";
@@ -71,17 +72,17 @@ describe("findOrphanAttachments", () => {
       mkFile("attachments/photo.png"),
       mkFile("attachments/clip.mp4"),
     ]);
-    const app = buildApp("attachments", tree, new Set(["attachments/twin/photo.png.md"]));
+    const app = buildApp("attachments", tree, new Set([twinFile("attachments", "photo.png.md")]));
     expect(findOrphanAttachments(app)).toEqual(["attachments/clip.mp4"]);
   });
 
-  it("does not descend into the twin/ subtree", () => {
+  it("does not descend into the twin subtree", () => {
     // Stale twin & preview files that don't correspond to photo.png — if the
-    // walker descended into twin/, these would be (incorrectly) returned as orphans.
-    const twinSubfolder = mkFolder("attachments/twin", [
-      mkFile("attachments/twin/old-orphan.md"),
-      mkFolder("attachments/twin/preview", [
-        mkFile("attachments/twin/preview/stale.png"),
+    // walker descended into the twin folder, these would be (incorrectly) returned as orphans.
+    const twinSubfolder = mkFolder(twinDir("attachments"), [
+      mkFile(twinFile("attachments", "old-orphan.md")),
+      mkFolder(`${twinDir("attachments")}/preview`, [
+        mkFile(`${twinDir("attachments")}/preview/stale.png`),
       ]),
     ]);
     const tree = mkFolder("attachments", [mkFile("attachments/photo.png"), twinSubfolder]);

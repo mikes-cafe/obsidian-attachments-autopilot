@@ -23,7 +23,7 @@ export interface TwinVault {
   formatLink(targetPath: string, sourcePath: string): Promise<string>;
 }
 
-export type EnsureTwinResult = "created" | "exists";
+export type EnsureTwinResult = "created" | "exists" | "created-render-failed";
 
 export function extensionOf(path: string): string {
   const slash = path.lastIndexOf("/");
@@ -126,13 +126,19 @@ export async function ensureTwin(
 
   await vault.create(paths.twinFile, buildTwinContent(refLink, ext));
 
+  let renderFailed = false;
   if (opts?.renderTemplate) {
     const rendered = await opts.renderTemplate(paths.twinFile);
     if (rendered !== null) {
       const merged = ensureFrontmatterKeys(rendered, refLink, ext);
       await vault.modify(paths.twinFile, merged);
+    } else {
+      // Twin keeps its base stub (acceptable fallback). Surface the failure so
+      // the queue can tombstone the path instead of treating a bodyless twin
+      // as a successful render.
+      renderFailed = true;
     }
   }
 
-  return "created";
+  return renderFailed ? "created-render-failed" : "created";
 }

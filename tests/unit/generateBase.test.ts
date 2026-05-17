@@ -20,8 +20,11 @@ class FakeApp {
 
   vault = {
     getConfig: (k: string) => (k === "attachmentFolderPath" ? this.attachmentFolderPath : null),
-    getAbstractFileByPath: (p: string) =>
-      this.files.has(p) ? ({ path: p, name: p } as never) : null,
+    getAbstractFileByPath: (p: string) => {
+      if (!this.files.has(p)) return null;
+      const ext = p.includes(".") ? p.split(".").pop()! : "";
+      return { path: p, name: p, extension: ext } as never;
+    },
     create: async (p: string, data: string) => {
       this.createCalls += 1;
       this.files.set(p, data);
@@ -29,6 +32,18 @@ class FakeApp {
     modify: async (file: { path: string }, data: string) => {
       this.modifyCalls += 1;
       this.files.set(file.path, data);
+    },
+    rename: async (file: { path: string }, newPath: string) => {
+      const content = this.files.get(file.path);
+      if (content === undefined) throw new Error(`Not found: ${file.path}`);
+      this.files.delete(file.path);
+      this.files.set(newPath, content);
+    },
+    getFiles: () => {
+      return Array.from(this.files.keys()).map(p => {
+        const ext = p.includes(".") ? p.split(".").pop()! : "";
+        return { path: p, extension: ext } as never;
+      });
     },
   };
 
@@ -211,5 +226,53 @@ describe("generateBaseFile", () => {
     expect(app.files.has("files.base")).toBe(true);
     expect(app.files.has("notes/files.base")).toBe(false);
     expect(app.files.has("notes/files/files.base")).toBe(false);
+  });
+
+  // Feature B — base file path tracking (previousBasePath)
+
+  it("renames the old .base file when previousBasePath is set and old file exists", async () => {
+    const app = new FakeApp();
+    app.attachmentFolderPath = "notes/files";
+    app.files.set("attachments.base", buildBaseContent());
+    const result = await generateBaseFile(app.asApp(), "attachments.base");
+    expect(result.status).toBe("updated");
+    expect(result.path).toBe("files.base");
+    expect(app.files.has("attachments.base")).toBe(false);
+    expect(app.files.has("files.base")).toBe(true);
+  });
+
+  it("creates fresh at new path when previousBasePath points to a missing file", async () => {
+    const app = new FakeApp();
+    app.attachmentFolderPath = "notes/files";
+    // "attachments.base" is NOT pre-populated
+    const result = await generateBaseFile(app.asApp(), "attachments.base");
+    expect(result.status).toBe("created");
+    expect(result.path).toBe("files.base");
+    expect(app.files.has("files.base")).toBe(true);
+  });
+
+  it("renames single orphan .base file when previousBasePath is empty (legacy install)", async () => {
+    const app = new FakeApp();
+    app.attachmentFolderPath = "notes/files";
+    app.files.set("attachments.base", buildBaseContent());
+    const result = await generateBaseFile(app.asApp(), "");
+    expect(result.status).toBe("updated");
+    expect(result.path).toBe("files.base");
+    expect(app.files.has("attachments.base")).toBe(false);
+    expect(app.files.has("files.base")).toBe(true);
+  });
+
+  it("skips auto-rename and creates new file when multiple .base orphans exist", async () => {
+    const app = new FakeApp();
+    app.attachmentFolderPath = "notes/files";
+    app.files.set("attachments.base", buildBaseContent());
+    app.files.set("old-thing.base", buildBaseContent());
+    const result = await generateBaseFile(app.asApp(), "");
+    expect(result.status).toBe("created");
+    expect(result.path).toBe("files.base");
+    // Both orphans remain untouched
+    expect(app.files.has("attachments.base")).toBe(true);
+    expect(app.files.has("old-thing.base")).toBe(true);
+    expect(app.files.has("files.base")).toBe(true);
   });
 });

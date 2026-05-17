@@ -5,6 +5,7 @@ import {
   renameTwin,
 } from "../../src/services/lifecycleService";
 import { ensureTwin, type TwinVault } from "../../src/services/twinService";
+import { twinFile, previewFile } from "./testHelpers";
 
 class FakeVault implements TwinVault {
   files = new Map<string, string>();
@@ -88,15 +89,15 @@ describe("classifyTransition", () => {
     expect(classifyTransition("notes/a.png", "notes/b.png", folder)).toBe("none");
   });
 
-  it("treats a move into twin/ as leaving scope", () => {
+  it("treats a move into the twin folder as leaving scope", () => {
     expect(
-      classifyTransition("attachments/photo.png", "attachments/twin/photo.png", folder),
+      classifyTransition("attachments/photo.png", twinFile("attachments", "photo.png"), folder),
     ).toBe("delete");
   });
 
-  it("treats a move out of twin/ into a regular attachment path as entering scope", () => {
+  it("treats a move out of the twin folder into a regular attachment path as entering scope", () => {
     expect(
-      classifyTransition("attachments/twin/old.png", "attachments/new.png", folder),
+      classifyTransition(twinFile("attachments", "old.png"), "attachments/new.png", folder),
     ).toBe("create");
   });
 });
@@ -109,9 +110,9 @@ describe("renameTwin", () => {
     await ensureTwin(v, "attachments/old.png", folder);
     await renameTwin(v, "attachments/old.png", "attachments/new.png", folder);
 
-    expect(v.files.has("attachments/twin/old.png.md")).toBe(false);
-    expect(v.files.has("attachments/twin/new.png.md")).toBe(true);
-    const content = v.files.get("attachments/twin/new.png.md")!;
+    expect(v.files.has(twinFile("attachments", "old.png.md"))).toBe(false);
+    expect(v.files.has(twinFile("attachments", "new.png.md"))).toBe(true);
+    const content = v.files.get(twinFile("attachments", "new.png.md"))!;
     expect(content).toContain('attachment-ref: "[[attachments/new.png]]"');
   });
 
@@ -120,15 +121,15 @@ describe("renameTwin", () => {
     const v = new FakeVault();
     await ensureTwin(v, "attachments/old.mp4", folder);
     // Simulate a previously-generated GIF preview.
-    v.binary.set("attachments/twin/preview/old.mp4.gif", new ArrayBuffer(8));
+    v.binary.set(previewFile("attachments", "old.mp4.gif"), new ArrayBuffer(8));
     // Simulate twin frontmatter that already points at the old preview.
     v.files.set(
-      "attachments/twin/old.mp4.md",
+      twinFile("attachments", "old.mp4.md"),
       [
         "---",
         'attachment-ref: "[[attachments/old.mp4]]"',
         "attachment-type: mp4",
-        'attachment-prev: "[[attachments/twin/preview/old.mp4.gif]]"',
+        `attachment-prev: "[[${previewFile("attachments", "old.mp4.gif")}]]"`,
         "---",
         "",
       ].join("\n"),
@@ -136,24 +137,24 @@ describe("renameTwin", () => {
 
     await renameTwin(v, "attachments/old.mp4", "attachments/new.mp4", folder);
 
-    expect(v.binary.has("attachments/twin/preview/old.mp4.gif")).toBe(false);
-    expect(v.binary.has("attachments/twin/preview/new.mp4.gif")).toBe(true);
-    const content = v.files.get("attachments/twin/new.mp4.md")!;
+    expect(v.binary.has(previewFile("attachments", "old.mp4.gif"))).toBe(false);
+    expect(v.binary.has(previewFile("attachments", "new.mp4.gif"))).toBe(true);
+    const content = v.files.get(twinFile("attachments", "new.mp4.md"))!;
     expect(content).toContain('attachment-ref: "[[attachments/new.mp4]]"');
     expect(content).toContain(
-      'attachment-prev: "[[attachments/twin/preview/new.mp4.gif]]"',
+      `attachment-prev: "[[${previewFile("attachments", "new.mp4.gif")}]]"`,
     );
   });
 
   // Self-reference path: image source IS the preview, so attachment-prev points at
   // the source itself. After rename, attachment-prev follows to the new source path
-  // and no file under twin/preview/ is touched.
+  // and no file under the preview subfolder is touched.
   it("self-reference: rename image attachment updates attachment-prev to new source path", async () => {
     const v = new FakeVault();
     await ensureTwin(v, "attachments/old.png", folder);
     // Simulate the post-self-reference twin: attachment-prev pointing at source.
     v.files.set(
-      "attachments/twin/old.png.md",
+      twinFile("attachments", "old.png.md"),
       [
         "---",
         'attachment-ref: "[[attachments/old.png]]"',
@@ -166,10 +167,10 @@ describe("renameTwin", () => {
 
     await renameTwin(v, "attachments/old.png", "attachments/new.png", folder);
 
-    // No preview file under twin/preview/ — the source is the preview.
-    expect(v.binary.has("attachments/twin/preview/old.png.png")).toBe(false);
-    expect(v.binary.has("attachments/twin/preview/new.png.png")).toBe(false);
-    const content = v.files.get("attachments/twin/new.png.md")!;
+    // No preview file under the preview folder — the source is the preview.
+    expect(v.binary.has(previewFile("attachments", "old.png.png"))).toBe(false);
+    expect(v.binary.has(previewFile("attachments", "new.png.png"))).toBe(false);
+    const content = v.files.get(twinFile("attachments", "new.png.md"))!;
     expect(content).toContain('attachment-ref: "[[attachments/new.png]]"');
     expect(content).toContain('attachment-prev: "[[attachments/new.png]]"');
   });
@@ -177,9 +178,9 @@ describe("renameTwin", () => {
   it("is a no-op when old and new attachment paths produce the same twin path", async () => {
     const v = new FakeVault();
     await ensureTwin(v, "attachments/photo.png", folder);
-    const before = v.files.get("attachments/twin/photo.png.md")!;
+    const before = v.files.get(twinFile("attachments", "photo.png.md"))!;
     await renameTwin(v, "attachments/photo.png", "attachments/photo.png", folder);
-    expect(v.files.get("attachments/twin/photo.png.md")).toBe(before);
+    expect(v.files.get(twinFile("attachments", "photo.png.md"))).toBe(before);
   });
 
   it("is silent when there's no twin to rename (attachment had no twin yet)", async () => {
@@ -197,14 +198,14 @@ describe("renameTwin", () => {
   it("updates attachment-ref when the source moves into a subfolder (twin path unchanged)", async () => {
     const v = new FakeVault();
     await ensureTwin(v, "attachments/clip.mp4", folder);
-    v.binary.set("attachments/twin/preview/clip.mp4.gif", new ArrayBuffer(8));
+    v.binary.set(previewFile("attachments", "clip.mp4.gif"), new ArrayBuffer(8));
     v.files.set(
-      "attachments/twin/clip.mp4.md",
+      twinFile("attachments", "clip.mp4.md"),
       [
         "---",
         'attachment-ref: "[[attachments/clip.mp4]]"',
         "attachment-type: mp4",
-        'attachment-prev: "[[attachments/twin/preview/clip.mp4.gif]]"',
+        `attachment-prev: "[[${previewFile("attachments", "clip.mp4.gif")}]]"`,
         "---",
         "",
       ].join("\n"),
@@ -218,14 +219,14 @@ describe("renameTwin", () => {
     );
 
     // Twin file path is unchanged (it's keyed by basename only).
-    expect(v.files.has("attachments/twin/clip.mp4.md")).toBe(true);
-    const content = v.files.get("attachments/twin/clip.mp4.md")!;
+    expect(v.files.has(twinFile("attachments", "clip.mp4.md"))).toBe(true);
+    const content = v.files.get(twinFile("attachments", "clip.mp4.md"))!;
     // But the wikilink reflects the new full path including the subfolder.
     expect(content).toContain('attachment-ref: "[[attachments/2024/clip.mp4]]"');
     // Preview file is also unchanged on disk and in the frontmatter.
-    expect(v.binary.has("attachments/twin/preview/clip.mp4.gif")).toBe(true);
+    expect(v.binary.has(previewFile("attachments", "clip.mp4.gif"))).toBe(true);
     expect(content).toContain(
-      'attachment-prev: "[[attachments/twin/preview/clip.mp4.gif]]"',
+      `attachment-prev: "[[${previewFile("attachments", "clip.mp4.gif")}]]"`,
     );
   });
 
@@ -238,11 +239,11 @@ describe("renameTwin", () => {
     const v = new FakeVault();
     await ensureTwin(v, "attachments/old.png", folder);
 
-    // Wedge: any attempt to read `attachments/twin/new.png.md` blows up. If
-    // the implementation depended on a post-rename read, this test would fail.
+    // Wedge: any attempt to read the new twin path blows up. If the
+    // implementation depended on a post-rename read, this test would fail.
     const realRead = v.read.bind(v);
     v.read = async (p: string) => {
-      if (p === "attachments/twin/new.png.md") {
+      if (p === twinFile("attachments", "new.png.md")) {
         throw new Error("simulated post-rename read failure");
       }
       return realRead(p);
@@ -250,8 +251,8 @@ describe("renameTwin", () => {
 
     await renameTwin(v, "attachments/old.png", "attachments/new.png", folder);
 
-    expect(v.files.has("attachments/twin/new.png.md")).toBe(true);
-    expect(v.files.get("attachments/twin/new.png.md")).toContain(
+    expect(v.files.has(twinFile("attachments", "new.png.md"))).toBe(true);
+    expect(v.files.get(twinFile("attachments", "new.png.md"))).toContain(
       'attachment-ref: "[[attachments/new.png]]"',
     );
   });
@@ -264,16 +265,16 @@ describe("deleteTwin", () => {
     const v = new FakeVault();
     await ensureTwin(v, "attachments/photo.png", folder);
     await deleteTwin(v, "attachments/photo.png", folder);
-    expect(v.files.has("attachments/twin/photo.png.md")).toBe(false);
+    expect(v.files.has(twinFile("attachments", "photo.png.md"))).toBe(false);
   });
 
   it("removes any preview file regardless of output extension", async () => {
     const v = new FakeVault();
     await ensureTwin(v, "attachments/clip.mp4", folder);
-    v.binary.set("attachments/twin/preview/clip.mp4.gif", new ArrayBuffer(4));
+    v.binary.set(previewFile("attachments", "clip.mp4.gif"), new ArrayBuffer(4));
     await deleteTwin(v, "attachments/clip.mp4", folder);
-    expect(v.binary.has("attachments/twin/preview/clip.mp4.gif")).toBe(false);
-    expect(v.files.has("attachments/twin/clip.mp4.md")).toBe(false);
+    expect(v.binary.has(previewFile("attachments", "clip.mp4.gif"))).toBe(false);
+    expect(v.files.has(twinFile("attachments", "clip.mp4.md"))).toBe(false);
   });
 
   it("is silent when nothing exists to delete", async () => {

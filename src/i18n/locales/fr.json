@@ -17,7 +17,7 @@
   "notices.base.created": "{path} créé",
   "notices.base.updated": "{path} mis à jour",
   "base.defaultBasename": "pieces-jointes",
-  "notices.attachmentFolder.relativeFallback": "Attachments Autopilot : votre 'Emplacement par défaut des pièces jointes' est défini par note. Les jumeaux seront centralisés sous `twin/` à la racine du coffre.",
+  "notices.attachmentFolder.relativeFallback": "Attachments Autopilot : votre 'Emplacement par défaut des pièces jointes' est défini par note. Les jumeaux seront centralisés sous `files-twins/` à la racine du coffre.",
   "notices.base.disabled.onload": "Attachments Autopilot : le plugin principal Bases est désactivé — Générer le fichier base ne fonctionnera pas tant que vous ne l'activerez pas dans Paramètres → Plugins principaux → Bases.",
   "notices.base.disabled.command": "Le plugin principal Bases est désactivé. Activez-le dans Paramètres → Plugins principaux → Bases pour générer le fichier base.",
 "notices.bulk.complete": "{count} pièce(s) jointe(s) importée(s)",
@@ -31,5 +31,6 @@
   "modal.templateDecision.title": "Appliquer le modèle aux jumeaux ?",
   "modal.templateDecision.body": "Vous importez {count} pièces jointes. Appliquer le modèle Templater configuré à tous les jumeaux ?",
   "modal.templateDecision.apply": "Appliquer à tous",
-  "modal.templateDecision.skip": "Ignorer pour ce lot"
+  "modal.templateDecision.skip": "Ignorer pour ce lot",
+  "notices.migration.twinFolderRenamed": "Attachments Autopilot : dossier des jumeaux renommé en {newFolder} ({count} fichier(s) migré(s))"
 }
