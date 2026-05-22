@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { App } from "obsidian";
 import {
+  baseFilename,
   buildBaseContent,
   generateBaseFile,
   isBasesEnabled,
@@ -41,6 +42,24 @@ class FakeApp {
     return this as unknown as App;
   }
 }
+
+describe("baseFilename", () => {
+  it("returns the localized default basename for vault-root mode", () => {
+    expect(baseFilename("")).toBe("attachments.base");
+  });
+
+  it("returns <folder>.base for a single-segment folder", () => {
+    expect(baseFilename("attachments")).toBe("attachments.base");
+  });
+
+  it("returns only the last segment for nested folders", () => {
+    expect(baseFilename("notes/files")).toBe("files.base");
+  });
+
+  it("returns only the last segment for deeply nested folders", () => {
+    expect(baseFilename("a/b/c")).toBe("c.base");
+  });
+});
 
 describe("buildBaseContent", () => {
   it("filters notes that have an attachment-ref property", () => {
@@ -162,6 +181,26 @@ describe("generateBaseFile", () => {
     expect(app.createCalls).toBe(0);
     expect(app.modifyCalls).toBe(0);
     expect(app.files.has(BASE_FILENAME)).toBe(false);
+  });
+
+  it("uses localized default basename when attachment folder is vault root", async () => {
+    const app = new FakeApp();
+    (app.vault as { getConfig: (k: string) => unknown }).getConfig = (k: string) =>
+      k === "attachmentFolderPath" ? "" : null;
+    const result = await generateBaseFile(app.asApp());
+    expect(result.status).toBe("created");
+    expect(result.path).toBe("attachments.base");
+  });
+
+  it("uses only the last path segment for nested attachment folders", async () => {
+    const app = new FakeApp();
+    (app.vault as { getConfig: (k: string) => unknown }).getConfig = (k: string) =>
+      k === "attachmentFolderPath" ? "notes/files" : null;
+    const result = await generateBaseFile(app.asApp());
+    expect(result.status).toBe("created");
+    expect(result.path).toBe("files.base");
+    expect(app.files.has("files.base")).toBe(true);
+    expect(app.files.has("notes/files.base")).toBe(false);
   });
 
   it("does not modify an existing base file when Bases is off (clean no-op)", async () => {

@@ -163,6 +163,10 @@ describe("resolveAttachmentFolder", () => {
       { name: "unicode + trailing slash",   input: "附件/",            folder: "附件",             twinFile: "附件/twin/photo.png.md" },
       { name: "doubled slashes",            input: "//attachments//", folder: "attachments",     twinFile: "attachments/twin/photo.png.md" },
       { name: "leading + trailing whitespace", input: "   attachments   ", folder: "attachments", twinFile: "attachments/twin/photo.png.md" },
+      { name: "relative mode 3 (./)",            input: "./",              folder: "",            twinFile: "twin/photo.png.md" },
+      { name: "relative mode 4 (./subfolder)",   input: "./subfolder",    folder: "",            twinFile: "twin/photo.png.md" },
+      { name: "relative mode deep (./a/b)",      input: "./a/b",          folder: "",            twinFile: "twin/photo.png.md" },
+      { name: "relative with leading whitespace", input: "  ./subfolder  ", folder: "",          twinFile: "twin/photo.png.md" },
     ];
 
     for (const c of cases) {

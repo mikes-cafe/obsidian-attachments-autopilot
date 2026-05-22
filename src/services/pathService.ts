@@ -28,7 +28,9 @@ export function resolveAttachmentFolder(app: App): string {
     "attachmentFolderPath",
   );
   if (typeof cfg !== "string") return "";
-  return stripSlashes(cfg);
+  const trimmed = cfg.trim();
+  if (trimmed.startsWith(".")) return ""; // modes 3 & 4 (relative to current note) → vault-root fallback
+  return stripSlashes(trimmed);
 }
 
 /**

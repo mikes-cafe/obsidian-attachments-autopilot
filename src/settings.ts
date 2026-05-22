@@ -16,6 +16,11 @@ export class AttachmentsAutopilotSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
+    const rawCfg = (this.app.vault as unknown as { getConfig?: (k: string) => unknown }).getConfig?.(
+      "attachmentFolderPath",
+    );
+    const isRelative = typeof rawCfg === "string" && rawCfg.trim().startsWith(".");
+
     const folder = resolveAttachmentFolder(this.app);
     const display = folder === "" ? t("settings.attachmentFolder.vaultRoot") : folder;
 
@@ -30,6 +35,13 @@ export class AttachmentsAutopilotSettingTab extends PluginSettingTab {
     this.renderDescription(setting.descEl);
 
     setting.addText((text) => text.setValue(display).setDisabled(true));
+
+    if (isRelative) {
+      containerEl.createEl("p", {
+        text: t("settings.attachmentFolder.relativeNotice"),
+        cls: "setting-item-description",
+      });
+    }
 
     this.renderTemplateSetting(containerEl);
   }

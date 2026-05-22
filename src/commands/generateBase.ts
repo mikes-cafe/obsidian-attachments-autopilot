@@ -1,5 +1,6 @@
 import { App, TFile } from "obsidian";
 import { resolveAttachmentFolder } from "../services/pathService";
+import { t } from "../i18n";
 
 /**
  * Whether Obsidian's Bases core plugin is currently enabled. The `.base` file
@@ -47,6 +48,11 @@ export interface GenerateBaseResult {
   path: string | null;
 }
 
+export function baseFilename(folder: string): string {
+  if (folder === "") return t("commands.generateBase.defaultBasename") + ".base";
+  return folder.split("/").pop()! + ".base";
+}
+
 export async function generateBaseFile(app: App): Promise<GenerateBaseResult> {
   // Refuse to write a `.base` file when Bases isn't running. Without Bases,
   // the file would just sit in the vault as plain YAML — confusing, and easy
@@ -55,7 +61,7 @@ export async function generateBaseFile(app: App): Promise<GenerateBaseResult> {
   if (!isBasesEnabled(app)) {
     return { status: "skipped-bases-disabled", path: null };
   }
-  const BASE_FILENAME = resolveAttachmentFolder(app)+ ".base";
+  const BASE_FILENAME = baseFilename(resolveAttachmentFolder(app));
 
 
   const content = buildBaseContent();
